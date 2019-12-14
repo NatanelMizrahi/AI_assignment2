@@ -1,6 +1,7 @@
-# AI_assignment1
-Hurricane evacuation simulator with AI search agents.
-The first assignment in Intro to Aritificial Intelligence.
+# AI_assignment2
+This is the second assignment in "Intro to Aritificial Intelligence".
+It's a hurricane evacuation simulator with Minimax based AI agents.
+Allows adversarial and collaborative mode.
 ## Instructions:
 ```
 usage: test.py [-h] [-g GRAPH_PATH] [-V V_NO_OPS] [-K BASE_PENALTY] [-L LIMIT]
