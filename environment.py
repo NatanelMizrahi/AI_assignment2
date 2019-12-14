@@ -47,38 +47,37 @@ class SmartGraph(Graph):
         super().__init__(V, E)
         self.env = env
 
-    def is_blocked(self, u, v):
-        e = self.get_edge(u, v)
-        return e.blocked or self.env.time + e.w > e.deadline
-
 
 class State:
     def __init__(self,
                  agent: AgentType,
                  agent_state: AgentType,
-                 require_evac_nodes: Set[EvacuateNode],
-                 blocked_edges: Set[Edge]):
+                 agent2: AgentType,
+                 agent2_state: AgentType,
+                 require_evac_nodes: Set[EvacuateNode]):
         """creates a new state. Inherits env and agent data, unless overwritten"""
         self.agent = agent
         self.agent_state = agent_state
+        self.agent2 = agent2
+        self.agent2_state = agent2_state
         self.require_evac_nodes = require_evac_nodes
-        self.blocked_edges = blocked_edges
 
     def is_goal(self):
         return self.agent_state.terminated
 
     def describe(self):
-        print("State: [{:<30}Evac:{}|Blocked:{}]"
-              .format(self.agent.summary(), self.require_evac_nodes, self.blocked_edges))
+        print("State: [{:<30}Evac:{}]"
+              .format(self.agent.summary(), self.require_evac_nodes))
 
 
 class Environment:
-    def __init__(self, G):
+    def __init__(self, G, mode, depth=3):
         self.time = 0
         self.G: SmartGraph = G
+        self.mode = mode
+        self.depth = depth
         self.agents: List[AgentType] = []
         self.require_evac_nodes: Set[EvacuateNode] = self.init_required_evac_nodes()
-        self.blocked_edges: Set[Edge] = set([])
         self.agent_actions = {}
 
     def tick(self):
@@ -91,8 +90,11 @@ class Environment:
     def init_required_evac_nodes(self):
         return set([v for v in self.G.get_vertices() if (not v.is_shelter() and v.n_people > 0)])
 
-    def get_blocked_edges(self):
-        return set([e for e in self.G.get_edges() if self.G.is_blocked(e.v1, e.v2)]) # shallow_copy(self.blocked_edges)
+    def get_other_agent(self, agent):
+        if agent.name == self.agents[0].name:
+            return self.agents[1]
+        else:
+            return self.agents[0]
 
     def get_require_evac_nodes(self):
         return shallow_copy(self.require_evac_nodes)
@@ -114,12 +116,14 @@ class Environment:
                 action.execute()
             del self.agent_actions[self.time]
 
+    #TODO: other agent?
     def get_state(self, agent: AgentType):
         return State(
             agent,
             agent.get_agent_state(),
-            self.get_require_evac_nodes(),
-            self.get_blocked_edges()
+            self.get_other_agent(agent),
+            self.get_other_agent(agent).get_agent_state(),
+            self.get_require_evac_nodes()
         )
 
     def apply_state(self, state: State):
@@ -129,61 +133,14 @@ class Environment:
         agent.update(to_copy)
         self.time = agent.time
         self.require_evac_nodes = shallow_copy(state.require_evac_nodes)
-        self.blocked_edges = shallow_copy(state.blocked_edges)
         for v in self.G.get_vertices():
             v_requires_evac = v in self.require_evac_nodes
             v.evacuated = not v_requires_evac
             v.n_people = v.n_people_initial if v_requires_evac else v.n_people
-        for e in self.G.get_edges():
-            e.blocked = e in self.blocked_edges
 
-    # Bonus
-    def get_edge_deadlines(self):
-        vandals = [agent for agent in self.agents if agent.is_vandal()]
-        if not vandals:
-            return
-        vandal_states = [self.get_state(vandal) for vandal in vandals]
-        V = self.G.get_vertices()
-        agent_locs = {v: shallow_copy(v.agents) for v in V}
-        self.G.display('Initial State: (Vandals simulation)')
-        while not all([vandal.terminated for vandal in vandals]):
-            print('\nT={} (Vandals simulation)'.format(self.time))
-            for vandal in vandals:
-                vandal.act(self)
-            self.tick()
-        self.G.display('Final State: (Vandals simulation)')
-        # restore initial state, keeping edge blocking times (edge deadlines)
-        for vandal_state in vandal_states:
-            self.apply_state(vandal_state)
-        for v in V:
-            v.agents = agent_locs[v]
-        print("Finished vandals simulation. Edge deadlines:")
-        print(set([(e, e.deadline) for e in self.G.get_edges() if e.deadline < float('inf')]))
-
-
-class Plan:
-    ID = count(0)
-
-    def __init__(self, cost,
-                 state: State,
+class Option:
+    def __init__(self,
                  action: Action,
-                 parent=None):
-        self.ID = next(Plan.ID)
-        self.cost = cost
-        self.state = state
+                 state: State):
         self.action = action
-        self.parent = parent
-        self.depth = parent and (parent.depth + 1) or 0
-
-    def __lt__(self, other):
-        """search tree node comparator. Tie-breaker prefers states in higher depths
-           to increase likelihood of larger number of people being saved"""
-        return (self.cost, other.depth) < (other.cost, self.depth)
-
-    def summary(self):
-        return "[{1.loc}]\nF={0}\nS{1.n_saved}|C{1.n_carrying}|{2}{3}\nB:{4}"\
-            .format(self.cost,
-                    self.state.agent_state,
-                    self.state.require_evac_nodes or [],
-                    '|T' if self.state.agent_state.terminated else '',
-                    self.state.blocked_edges or [])
+        self.state = state

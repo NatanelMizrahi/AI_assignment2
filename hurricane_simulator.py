@@ -2,16 +2,15 @@ import re
 from configurator import Configurator
 from random import choice as rand_choice
 from utils.data_structures import Edge
-from agents.search_agents import SearchAgent
 from environment import Environment, ShelterNode, EvacuateNode, SmartGraph
-
+from agents.search_agents import GameAgent
 
 class Simulator:
     """Hurricane evacuation simulator"""
 
-    def __init__(self):
+    def __init__(self, mode, depth):
         self.G: SmartGraph = self.get_graph()
-        self.env: Environment = Environment(self.G)
+        self.env: Environment = Environment(self.G, mode, depth)
         self.G.env = self.env
 
     def get_graph(self):
@@ -70,20 +69,16 @@ class Simulator:
             raise Exception("Error: |V| != N")
         return SmartGraph(V, E)
 
-    def init_agents(self, agents):
+    def init_agents(self):
         shelters = [v for v in self.G.get_vertices() if v.is_shelter()]
-        for agent_class in agents:
+        for i in range(0, 2):
             start_vertex = rand_choice(shelters)
-            new_agent = agent_class(agent_class.__name__, start_vertex)
+            new_agent = GameAgent("Agent" + str(i), start_vertex)
             self.env.agents.append(new_agent)
             start_vertex.agents.add(new_agent)
-        search_agents_active = any([isinstance(agent, SearchAgent) for agent in self.env.agents])
-        if search_agents_active:
-            print("SearchAgent(s) active, running a Vandal-only simulation to predict edge blocking deadlines")
-            self.env.get_edge_deadlines()
 
-    def run_simulation(self, agents):
-        self.init_agents(agents)
+    def run_simulation(self):
+        self.init_agents()
         print('** STARTING SIMULATION **')
         while not self.env.all_terminated():
             tick = self.env.time
