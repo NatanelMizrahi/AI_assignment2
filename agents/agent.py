@@ -65,6 +65,9 @@ class Agent:
 
     def goto(self, env: Environment, v: EvacuateNode):
         """simulates a traverse operation locally for an max_player- without updating the environment's entire state"""
+        if not self.is_reachable(env, v, verbose=True):
+            self.local_terminate()
+            return
         self.time = self.traverse_end_time(env, v)
         self.loc = v
 
@@ -127,7 +130,7 @@ class Agent:
         self.actions_seq.append(action)
         self.time = max(self.time, action.end_time) #TODO: redundant, see if dropping it causes any bugs
         if verbose:
-            print('\n[START]' + action.description)
+            print('\n[REGISTERED]' + action.description)
 
     def summary(self):
         terminate_string = '[${}]'.format(self.get_score()) if self.terminated else ''

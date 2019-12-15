@@ -19,6 +19,7 @@ def display_tree(root, min_nodes, max_nodes, E, edge_labels={}):
     plt.legend([], title="Minimax Tree", loc='upper left')
     plt.show()
 
+
 def tree_pos(G, root=None, width=1., vert_gap = 0.2, vert_loc = 0, xcenter = 0.5):
     '''
     From Joel's answer at https://stackoverflow.com/a/29597209/2966723.

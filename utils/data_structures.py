@@ -6,6 +6,16 @@ from heapq import _siftdown
 from typing import List, Dict, Tuple
 
 
+def encode(n):
+    CHARS = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" \
+            "ÂÄÆÃÅĀÁÀáâäæãåāïíīįìÎÍĪĮÌôöòóœøōõûüùúūÛÜÙÚŪèéêëēėęÈÉÊËĒĖĘŃŠćčç"
+    base = len(CHARS)
+
+    def to_base(n, b):
+        return "0" if not n else to_base(n // base, base).lstrip("0") + CHARS[n % b]
+    return to_base(n, base)
+
+
 def insert_sorted(item, lst: list):
     i = 0
     while i < len(lst) and lst[i] < item:

@@ -1,4 +1,4 @@
-from utils.data_structures import Node, Edge, Graph, insert_sorted
+from utils.data_structures import Node, Edge, Graph, insert_sorted, encode
 from typing import List, Set, TypeVar, Union
 from copy import copy as shallow_copy
 from action import Action
@@ -67,7 +67,7 @@ class State:
         self.agent2_state = agent2_state
         self.require_evac_nodes = require_evac_nodes
         self.agent_actions = self.schedule_shallow_copy(agent_actions)
-        self.ID = str(next(State.ID))
+        self.ID = encode(next(State.ID))
 
     def schedule_shallow_copy(self, agent_actions):
         return {time: shallow_copy(actions) for time, actions in agent_actions.items()}
@@ -131,7 +131,7 @@ class Environment:
         queued_actions = self.agent_actions.get(self.time)
         if queued_actions:
             for action in queued_actions:
-                print('[EXECUTING]' + action.description)
+                # print('[EXECUTING]' + action.description)
                 action.execute()
             del self.agent_actions[self.time]
 

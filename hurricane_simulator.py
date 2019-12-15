@@ -82,8 +82,11 @@ class Simulator:
         while not self.env.all_terminated():
             tick = self.env.time
             print('\nT={}'.format(tick))
+            self.env.execute_agent_actions() #TODO: split tick()
             for agent in self.env.agents:
-                self.env.G.display('T={}: {}'.format(tick, agent.name))
+                self.env.G.display('T={}: {} PRE'.format(tick, agent.name))
                 agent.act(self.env)
-            self.env.tick()
+                self.env.G.display('T={}: {} POST'.format(tick, agent.name))
+            self.env.time += 1 #TODO: split tick()
+            # self.env.tick()
         self.env.G.display('Final State: T=' + str(self.env.time))

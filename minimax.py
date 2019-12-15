@@ -27,7 +27,7 @@ class MiniMaxTree:
         """restore environment to actual state after finding a strategy"""
         self.env.apply_state(self.root.state)
 
-    def get_state(self, terminal_node):
+    def get_final_state(self, terminal_node):
         """ calculates the terminal state by backtracking the terminal node to get all the actions leading to the
             terminal state and executes them.
             This partially solves the concurrency issue caused by the fact that the environment is inherently NOT
@@ -37,7 +37,7 @@ class MiniMaxTree:
         self.restore_env()
         self.env.agent_actions = {}
         self.env.add_agent_actions(all_agents_actions)
-        self.env.print_queued_actions("LA'AZAZEL")
+        self.env.print_queued_actions("DAMMIT")
         self.env.get_state(self.max_player).describe()
         self.env.execute_all_env_actions()
         return self.env.get_state(self.max_player)
@@ -47,9 +47,11 @@ class MiniMaxTree:
         state_node.is_max = is_max
         state = state_node.state
         if depth == 0 or state.is_goal():
-            final_state = self.get_state(state_node)
+            final_state = self.get_final_state(state_node)
+            utility = self.heuristic(final_state)
             state_node.state = final_state
-            return state_node, self.heuristic(final_state)
+            state_node.value = utility
+            return state_node, utility
 
         if is_max:  # MAX player
             value = float('-inf')
@@ -66,7 +68,6 @@ class MiniMaxTree:
                 a = max(a, value)
                 if a >= b:
                     break
-            return choice, value
         else:  # MIN player
             value = float('inf')
             options = self.expand_node(state, self.min_player)
@@ -82,7 +83,8 @@ class MiniMaxTree:
                 b = min(b, value)
                 if a >= b:
                     break
-            return choice, value
+        state_node.value = value
+        return choice, value
 
     def heuristic(self, state: State):
         h1 = self.heuristic_helper(self.max_player, state)
@@ -92,37 +94,48 @@ class MiniMaxTree:
     def heuristic_helper(self, agent, state: State):
         """given a state for an max_player, returns how many people can (!) be saved by the max_player"""
         self.env.apply_state(state)
-        self.env.get_state(agent).describe()
         if agent.terminated:
             return agent.n_saved #TODO: fix
-        src = agent.loc
-        self.env.G.dijkstra(src)
-        V = self.env.G.get_vertices()
 
-        require_evac_nodes = self.env.get_require_evac_nodes()
-        n_can_save = 0
-        # find nodes that can be reached before hurricane hits them. create (node, required_pickup_time) pairs
-        evac_candidates, can_save = [], []
+        def num_rescuable_carrying():
+            if any([self.env.can_reach_before_deadline(v) for v in self.env.get_shelters()]):
+                return agent.n_carrying
+            return 0
 
-        if any([self.env.can_reach_before_deadline(v) for v in self.env.get_shelters()]):
-            n_can_save += agent.n_carrying
+        def get_evac_candidates():
+            """find nodes that can be reached before hurricane hits them.
+                :returns: a list of (node, pickup_time, pickup_path) tuples"""
+            src = agent.loc
+            self.env.G.dijkstra(src)
+            evacuation_candidates = []
+            require_evac_nodes = self.env.get_require_evac_nodes()
+            for v in require_evac_nodes:
+                if self.env.can_reach_before_deadline(v) and self.env.can_reach_before_other_agent(agent, v):
+                    # nodes we can reach in time
+                    time_after_pickup = self.env.time + v.d
+                    pickup_shortest_path = list(self.env.G.get_shortest_path(src, v))
+                    evacuation_candidates.append((v, time_after_pickup, pickup_shortest_path))
+            return evacuation_candidates
 
-        for v in require_evac_nodes:
-            if self.env.can_reach_before_deadline(v) and self.env.can_reach_before_other_agent(agent, v):
-                # nodes we can reach in time
-                time_after_pickup = self.env.time + v.d
-                pickup_shortest_path = list(self.env.G.get_shortest_path(src, v))
-                evac_candidates.append((v, time_after_pickup, pickup_shortest_path))
+        def can_reach_shelter(evacuation_candidates):
+            can_save = []
+            V = self.env.G.get_vertices()
+            for u, time_after_pickup, pickup_shortest_path in evacuation_candidates:
+                self.env.G.dijkstra(u)  # calculate minimum distance from node after pickup
+                shelter_candidates = [(v, time_after_pickup + v.d, list(self.env.G.get_shortest_path(u, v))) for v in V
+                                      if v.is_shelter() and time_after_pickup + v.d <= v.deadline]
+                if len(shelter_candidates) != 0:
+                    can_save.append(u)
+            return can_save
 
-        for u, time_after_pickup, pickup_shortest_path in evac_candidates:
-            self.env.G.dijkstra(u)  # calculate minimum distance from node after pickup
-            shelter_candidates = [(v, time_after_pickup + v.d, list(self.env.G.get_shortest_path(u, v))) for v in V
-                                  if v.is_shelter() and time_after_pickup + v.d <= v.deadline]
-            if shelter_candidates:
-                can_save.append(u)
-        n_can_save += sum([v.n_people for v in can_save])
-        debug('[#{}]:{} can save {} (nodes = {}, carrying ={})'.format(state.ID, agent.name, n_can_save, can_save, agent.n_carrying))
-        return n_can_save + agent.n_saved # TODO: fix
+        evac_candidates = get_evac_candidates()
+        can_save_nodes = can_reach_shelter(evac_candidates)
+        n_already_saved = agent.n_saved
+        n_can_save = num_rescuable_carrying()
+        n_can_save += sum([v.n_people for v in can_save_nodes])
+        debug('[#{}]:{} can save {} (nodes = {}, carrying ={})'
+              .format(state.ID, agent.name, n_can_save, can_save_nodes, agent.n_carrying))
+        return n_can_save + n_already_saved # TODO: fix
 
     def expand_node(self, state: State, agent):
         """returns Options (action, state) for all possible moves."""
