@@ -27,6 +27,7 @@ class MiniMaxTree:
         self.env.apply_state(self.root.state)
 
     def minimax(self, state_node: Option, depth, a, b, is_max=True):
+        state_node.is_max = is_max
         self.nodes.append(state_node)
         state = state_node.state
         if depth == 0 or state.is_goal():
@@ -73,7 +74,7 @@ class MiniMaxTree:
         """given a state for an max_player, returns how many people can (!) be saved by the max_player"""
         self.env.apply_state(state)
         if agent.terminated:
-            return 0
+            return agent.n_saved #TODO: fix
         src = agent.loc
         self.env.G.dijkstra(src)
         V = self.env.G.get_vertices()
@@ -103,7 +104,7 @@ class MiniMaxTree:
                 #                                                                     shelter.deadline))
         n_can_save = sum([v.n_people for v in can_save])
         # debug('h(x) = {} = # of people we an rescue (nodes = {})'.format(n_can_save, can_save))
-        return n_can_save
+        return n_can_save + agent.n_saved # TODO: fix
 
     def expand_node(self, state: State, agent):
         """returns Options (action, state) for all possible moves."""
@@ -153,6 +154,8 @@ class MiniMaxTree:
         def node_str(node, id):
             return '{} {}'.format(node.summary(), id)
         nodes = {node: node_str(node, id) for id, node in enumerate(self.nodes)}
+        max_nodes = [nodes[v] for v in nodes.keys() if v.is_max]
+        min_nodes = [nodes[v] for v in nodes.keys() if not v.is_max]
         V = list(nodes.values())
         E = []
         edge_labels = {}
@@ -162,4 +165,4 @@ class MiniMaxTree:
                 E.append(e)
                 edge_labels[e[0], e[1]] = node.action.summary
                 edge_labels[e[1], e[0]] = node.action.summary
-        display_tree(nodes[self.root], V, E, edge_labels)
+        display_tree(nodes[self.root], min_nodes, max_nodes, E, edge_labels)

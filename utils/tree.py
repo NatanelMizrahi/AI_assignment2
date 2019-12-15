@@ -4,20 +4,20 @@ import networkx as nx
 import random
 
 
-def display_tree(root, V, E, edge_labels={}):
+def display_tree(root, min_nodes, max_nodes, E, edge_labels={}):
     G = nx.Graph()
-    G.add_nodes_from(V)
+    G.add_nodes_from(min_nodes + max_nodes)
     G.add_edges_from(E)
     color_map = []
     for v in G:
-        color_map.append('cyan' if '$' in v else 'orange')
+        color_map.append('cyan' if v in min_nodes else 'orange')
     pos = tree_pos(G, root)
+    nx.draw_networkx_labels(G, pos, font_size=7)
     nx.draw(G, pos=pos, with_labels=True, font_size=7, node_color=color_map, node_size=1000, node_shape='s')
     if edge_labels:
         nx.draw_networkx_edge_labels(G, pos, edge_labels, rotate=False, font_size=6)
-    plt.legend([], title="Search Tree", loc='upper left')
+    plt.legend([], title="Minimax Tree", loc='upper left')
     plt.show()
-
 
 def tree_pos(G, root=None, width=1., vert_gap = 0.2, vert_loc = 0, xcenter = 0.5):
     '''

@@ -157,6 +157,7 @@ class Option:
         self.state = state
         self.value = None
         self.parent: Option = None
+        self.is_max = False
 
     def summary(self):
-        return '\n'.join([self.state.summary(), 'h={}'.format(self.value)])
+        return '\n'.join([self.state.summary(), 'v={}'.format(self.value)])
