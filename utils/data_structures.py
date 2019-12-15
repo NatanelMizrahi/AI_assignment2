@@ -6,6 +6,13 @@ from heapq import _siftdown
 from typing import List, Dict, Tuple
 
 
+def insert_sorted(item, lst: list):
+    i = 0
+    while i < len(lst) and lst[i] < item:
+        i += 1
+    lst[i:i] = [item]
+
+
 class Heap:
     def __init__(self, elements: List=[]):
         heapq.heapify(elements)

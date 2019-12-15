@@ -55,19 +55,24 @@ class Agent:
         self.register_goto_callback(env, v)
 
     def arrive(self, env: Environment, v: EvacuateNode):
-        #TODO: check deadline not passed
-        # e = env.G.get_edge(self.loc, v)
+        print('ARV', self.loc, v, self.loc.agents)
         self.loc.agents.remove(self)
         self.loc = v
         v.agents.add(self)
         self.goto_str = ''
+        self.eta = 0
+        self.dest = None
         self.try_evacuate(env, v)
 
     def goto(self, env: Environment, v: EvacuateNode):
         """simulates a traverse operation locally for an max_player- without updating the environment's entire state"""
         self.time = self.traverse_duration(env, v)
         self.loc = v
-        self.try_evacuate(env, v)
+        # self.goto_str = '->{}[T{}]'.format(v, self.eta)
+        #
+        # self.eta = self.traverse_duration(env, v)
+        # self.dest = v
+        # self.try_evacuate(env, v)
 
     def local_terminate(self):
         """simulates a terminate operation locally for an max_player- without updating the environment's entire state"""
@@ -84,11 +89,13 @@ class Agent:
         end_time = self.traverse_duration(env, v)
         goto_action = Action(
             agent=self,
-            action_type=ActionType.TRAVERSE,
+            action_type=ActionType.ARRIVE, #TODO: was traverse
             description='{}: Go from {} to {} (end_time: {})'.format(self.name, self.loc, v.label, end_time),
             callback=goto_node,
             end_time=end_time
         )
+        self.dest = v
+        self.eta = end_time
         self.goto_str = '->{}'.format(v)
         self.register_action(env, goto_action)
 
@@ -104,11 +111,11 @@ class Agent:
             return
         if v.is_shelter():
             if self.n_carrying > 0:
-                debug('Dropped off {.n_carrying} people'.format(self))
+                debug('{0.name} Dropped off {0.n_carrying} people'.format(self))
                 self.n_saved += self.n_carrying
                 self.n_carrying = 0
         elif not v.evacuated:
-            debug('Picked up {} people'.format(v.n_people))
+            debug('{} Picked up {} people'.format(self.name, v.n_people))
             self.n_carrying += v.n_people
             v.evacuated = True
             v.n_people = 0
@@ -137,7 +144,7 @@ class Agent:
 
     def summary(self):
         terminate_string = '[${}]'.format(self.get_score()) if self.terminated else ''
-        return '{0.name}:{0.loc}|S{0.n_saved}|C{0.n_carrying}{0.goto_str}|T{0.time}'.format(self) + terminate_string
+        return '{0.name}:{0.loc}{0.goto_str}|S{0.n_saved}|C{0.n_carrying}|T{0.time}'.format(self) + terminate_string
 
     def describe(self):
         print(self.summary())
@@ -151,4 +158,8 @@ class Agent:
 
     def __hash__(self):
         return hash(repr(self))
+
+    def __repr__(self):
+        return self.name
+
 

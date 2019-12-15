@@ -1,7 +1,7 @@
 from typing import Union, List
 from utils.tree import display_tree
 from environment import Environment, State, EvacuateNode, Option
-from configurator import Configurator
+from configurator import Configurator, debug
 from action import Action, ActionType
 
 
@@ -26,19 +26,39 @@ class MiniMaxTree:
         """restore environment to actual state after finding a strategy"""
         self.env.apply_state(self.root.state)
 
+    def get_state(self, terminal_node, is_max=True):
+        """ calculates the terminal state by backtracking the terminal node to get all the actions leading to the
+            terminal state and executes them.
+            This partially solves the concurrency issue caused by the fact that the environment is inherently NOT
+            turn based: one agent can do a single long traverse move while the other can do several shorter moves"""
+        path_to_root = self.backtrack(terminal_node)
+        all_agents_actions = [option.action for option in path_to_root]
+        self.restore_env()
+        self.env.add_agent_actions(all_agents_actions)
+        debug("***PRE***")
+        for k,v in self.env.agent_actions.items():
+            debug('\n\t'.join([str(k)]+[a.description for a in v]))
+        self.env.get_state(self.max_player).describe()
+        self.env.execute_all_env_actions()
+        # player = is_max and self.max_player or self.min_player
+        return self.env.get_state(self.max_player)
+
     def minimax(self, state_node: Option, depth, a, b, is_max=True):
-        state_node.is_max = is_max
         self.nodes.append(state_node)
+        state_node.is_max = is_max
         state = state_node.state
         if depth == 0 or state.is_goal():
-            return state_node, self.heuristic(state)
+            final_state = self.get_state(state_node)  # , is_max)
+            state_node.state = final_state
+            return state_node, self.heuristic(final_state)
+
         if is_max:  # MAX player
             value = float('-inf')
             options = self.expand_node(state, self.max_player)
             choice = None
             for opt in options:
-                min_option, min_option_value = self.minimax(opt, depth-1, a, b, is_max=False)
                 opt.parent = state_node
+                min_option, min_option_value = self.minimax(opt, depth-1, a, b, is_max=False)
                 opt.value = min_option_value
                 temp = max(value, min_option_value)
                 if temp > value:
@@ -53,8 +73,8 @@ class MiniMaxTree:
             options = self.expand_node(state, self.min_player)
             choice = None
             for opt in options:
-                max_option, max_option_value = self.minimax(opt, depth-1, a, b, is_max=True)
                 opt.parent = state_node
+                max_option, max_option_value = self.minimax(opt, depth-1, a, b, is_max=True)
                 opt.value = max_option_value
                 temp = min(value, max_option_value)
                 if temp < value:
@@ -73,7 +93,9 @@ class MiniMaxTree:
     def heuristic_helper(self, agent, state: State):
         """given a state for an max_player, returns how many people can (!) be saved by the max_player"""
         self.env.apply_state(state)
+        self.env.get_state(agent).describe()
         if agent.terminated:
+            print(agent.name, 'TERMINATED')
             return agent.n_saved #TODO: fix
         src = agent.loc
         self.env.G.dijkstra(src)
@@ -83,7 +105,7 @@ class MiniMaxTree:
         evac_candidates, can_save = [], []
 
         for v in require_evac_nodes:
-            if self.env.time + v.d >= v.deadline:  # nodes we can reach in time
+            if self.env.time + v.d <= v.deadline:  # nodes we can reach in time
                 time_after_pickup = self.env.time + v.d
                 pickup_shortest_path = list(self.env.G.get_shortest_path(src, v))
                 evac_candidates.append((v, time_after_pickup, pickup_shortest_path))
@@ -103,19 +125,15 @@ class MiniMaxTree:
                 #                                                                     total_time,
                 #                                                                     shelter.deadline))
         n_can_save = sum([v.n_people for v in can_save])
-        # debug('h(x) = {} = # of people we an rescue (nodes = {})'.format(n_can_save, can_save))
+        debug('[SID {}]:{} can save {} (nodes = {})'.format(state.ID, agent.name, n_can_save, can_save))
         return n_can_save + agent.n_saved # TODO: fix
 
     def expand_node(self, state: State, agent):
         """returns Options (action, state) for all possible moves."""
         self.env.apply_state(state)
-        # debug("Expanding node ID={0.ID} (cost = {0.cost}):".format(plan))
-        # state.describe()
-        neighbours = agent.get_possible_steps(self.env, verbose=True) # options to proceed
+        neighbours = agent.get_possible_steps(self.env, verbose=False) # options to proceed
         options = []
         for dest in neighbours + [ActionType.TERMINATE]:
-            # debug("\ncreated state:")
-            # result_state.describe()
             new_option = self.successor(state, agent, dest)
             options.append(new_option)
         return options
@@ -132,19 +150,32 @@ class MiniMaxTree:
                 agent.terminate(self.env)
             action = Action(
                 agent=agent,
+                action_type=ActionType.TERMINATE,
                 description='*[T={:>3}] "TERMINATE" action for {}'.format(agent.time, agent.name),
+                end_time=agent.time,
                 callback=terminate_agent)
             agent.local_terminate()
         else:
             def move_agent():
                 agent.traverse(self.env, dest)
+                print('TRV', agent.loc, dest, agent.loc.agents, dest.agents)
             action = Action(
                 agent=agent,
+                action_type=ActionType.TRAVERSE,
                 description='*[T={:>3}] "TRAVERSE {}->{}" action for {}'.format(agent.time, agent.loc, dest, agent.name),
+                end_time=agent.time,
                 callback=move_agent)
             agent.goto(self.env, dest)
-        action.describe()
+        # action.describe()
         return Option(action, self.env.get_state(agent))
+
+    def backtrack(self, option):
+        path_to_root = [option]
+        v = option
+        while v is not self.root:
+            v = v.parent
+            path_to_root.append(v)
+        return reversed(path_to_root)
 
     def display(self):
         """plots the search tree"""
@@ -153,7 +184,8 @@ class MiniMaxTree:
 
         def node_str(node, id):
             return '{} {}'.format(node.summary(), id)
-        nodes = {node: node_str(node, id) for id, node in enumerate(self.nodes)}
+        # nodes = {node: node_str(node, id) for id, node in enumerate(self.nodes)}
+        nodes = {node: node.summary() for node in self.nodes}
         max_nodes = [nodes[v] for v in nodes.keys() if v.is_max]
         min_nodes = [nodes[v] for v in nodes.keys() if not v.is_max]
         V = list(nodes.values())

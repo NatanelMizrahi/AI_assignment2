@@ -1,9 +1,14 @@
-from enum import Enum
+from enum import IntEnum
 import re
 
-class ActionType(Enum):
-    TRAVERSE  = 1
+
+class ActionType(IntEnum):
+    """ forces order on actions being executed on the same cycle: first uncompleted TRAVERSE moves (ARRIVE),
+        then TERMINATE, and lastly beginning TRAVERSE operations"""
+    NOOP      = 0
+    ARRIVE    = 1
     TERMINATE = 2
+    TRAVERSE  = 3
 
 
 class Action:
@@ -11,7 +16,7 @@ class Action:
     def __init__(self,
                  agent,
                  # optional arguments
-                 action_type: ActionType=None,
+                 action_type: ActionType=ActionType.NOOP,
                  description='',
                  end_time=0,
                  callback=None):
@@ -21,6 +26,9 @@ class Action:
         self.end_time = end_time
         self.callback = callback
         self.summary = re.search('(\w+->\w+)', self.description).group() if '->' in description else 'T'
+
+    def __lt__(self, other):
+        return self.action_type <= other.action_type
 
     def execute(self):
         if self.callback is not None:
