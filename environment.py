@@ -1,9 +1,10 @@
 from utils.data_structures import Node, Edge, Graph
-from typing import List, Set, TypeVar
+from typing import List, Set, TypeVar, Union
 from copy import copy as shallow_copy
 from action import Action
-from itertools import count
+
 AgentType = TypeVar('Agent')
+GameMode = Union['Adversarial', 'Cooperative', 'Semi-cooperative']
 
 
 class EvacuateNode(Node):
@@ -55,7 +56,7 @@ class State:
                  agent2: AgentType,
                  agent2_state: AgentType,
                  require_evac_nodes: Set[EvacuateNode]):
-        """creates a new state. Inherits env and agent data, unless overwritten"""
+        """creates a new state. Inherits env and max_player data, unless overwritten"""
         self.agent = agent
         self.agent_state = agent_state
         self.agent2 = agent2
@@ -63,15 +64,20 @@ class State:
         self.require_evac_nodes = require_evac_nodes
 
     def is_goal(self):
-        return self.agent_state.terminated
+        return self.agent_state.terminated or self.agent2_state.terminated
 
     def describe(self):
         print("State: [{:<30}Evac:{}]"
               .format(self.agent.summary(), self.require_evac_nodes))
 
+    def summary(self):
+        return '\n'.join([self.agent_state.summary(),
+                          self.agent2_state.summary(),
+                          repr(self.require_evac_nodes or [])])
+
 
 class Environment:
-    def __init__(self, G, mode, depth=3):
+    def __init__(self, G, mode: GameMode='Adverserial', depth=3):
         self.time = 0
         self.G: SmartGraph = G
         self.mode = mode
@@ -87,9 +93,13 @@ class Environment:
     def all_terminated(self):
         return all([agent.terminated for agent in self.agents])
 
+    def total_unsaved(self):
+        return sum([v.n_people for v in self.require_evac_nodes])
+
     def init_required_evac_nodes(self):
         return set([v for v in self.G.get_vertices() if (not v.is_shelter() and v.n_people > 0)])
 
+    #TODO: convert to pointers
     def get_other_agent(self, agent):
         if agent.name == self.agents[0].name:
             return self.agents[1]
@@ -99,8 +109,8 @@ class Environment:
     def get_require_evac_nodes(self):
         return shallow_copy(self.require_evac_nodes)
 
-    def get_agent_actions(self):
-        return {agent: agent.actions_seq for agent in self.agents}
+    # def get_agent_actions(self):
+    #     return {max_player: max_player.actions_seq for max_player in self.agents}
 
     def add_agent_actions(self, agent_actions_to_add):
         for action in agent_actions_to_add:
@@ -116,7 +126,6 @@ class Environment:
                 action.execute()
             del self.agent_actions[self.time]
 
-    #TODO: other agent?
     def get_state(self, agent: AgentType):
         return State(
             agent,
@@ -127,16 +136,18 @@ class Environment:
         )
 
     def apply_state(self, state: State):
-        """applies a state to the environment, in terms of the agent's state variables,
-           node evacuation status and blocked edges"""
+        """applies a state to the environment, in terms of the max_player's state variables & node evacuation status"""
         agent, to_copy = state.agent, state.agent_state
+        agent2, to_copy2 = state.agent2, state.agent2_state
         agent.update(to_copy)
-        self.time = agent.time
+        agent2.update(to_copy2)
+        self.time = agent.time #TODO not correct
         self.require_evac_nodes = shallow_copy(state.require_evac_nodes)
         for v in self.G.get_vertices():
             v_requires_evac = v in self.require_evac_nodes
             v.evacuated = not v_requires_evac
             v.n_people = v.n_people_initial if v_requires_evac else v.n_people
+
 
 class Option:
     def __init__(self,
@@ -144,3 +155,8 @@ class Option:
                  state: State):
         self.action = action
         self.state = state
+        self.value = None
+        self.parent: Option = None
+
+    def summary(self):
+        return '\n'.join([self.state.summary(), 'h={}'.format(self.value)])

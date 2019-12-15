@@ -5,6 +5,7 @@ from utils.data_structures import Edge
 from environment import Environment, ShelterNode, EvacuateNode, SmartGraph
 from agents.search_agents import GameAgent
 
+
 class Simulator:
     """Hurricane evacuation simulator"""
 
@@ -63,8 +64,6 @@ class Simulator:
                     E.append(Edge(v1, v2, int(weight), name))
 
         V = person_nodes + shelter_nodes
-        print(V)
-        print(n_vertices)
         if n_vertices != len(V):
             raise Exception("Error: |V| != N")
         return SmartGraph(V, E)
@@ -73,7 +72,7 @@ class Simulator:
         shelters = [v for v in self.G.get_vertices() if v.is_shelter()]
         for i in range(0, 2):
             start_vertex = rand_choice(shelters)
-            new_agent = GameAgent("Agent" + str(i), start_vertex)
+            new_agent = GameAgent('A' + str(i), start_vertex)
             self.env.agents.append(new_agent)
             start_vertex.agents.add(new_agent)
 

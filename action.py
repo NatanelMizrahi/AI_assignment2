@@ -1,15 +1,13 @@
 from enum import Enum
-
+import re
 
 class ActionType(Enum):
-    NO_OP     = 0
-    GOTO      = 1
-    BLOCK     = 2
-    TERMINATE = 3
+    TRAVERSE  = 1
+    TERMINATE = 2
 
 
 class Action:
-    """Data structure for describing an agent's action"""
+    """Data structure for describing an max_player's action"""
     def __init__(self,
                  agent,
                  # optional arguments
@@ -22,6 +20,7 @@ class Action:
         self.description = description
         self.end_time = end_time
         self.callback = callback
+        self.summary = re.search('(\w+->\w+)', self.description).group() if '->' in description else 'T'
 
     def execute(self):
         if self.callback is not None:

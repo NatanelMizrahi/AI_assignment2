@@ -105,7 +105,6 @@ class Edge:
         self.v1 = v1
         self.v2 = v2
         self.w = w
-        self.blocked = False
         self.deadline = float('inf')
 
     def get(self):
@@ -125,8 +124,6 @@ class Edge:
 
 
 class Graph:
-    """Graph with blockable edges"""
-
     def __init__(self, V: List[Node]=[], E: List[Edge]=[]):
         self.pos = None  # used to maintain vertices position in visualization
         self.n_vertices = 0
@@ -180,17 +177,8 @@ class Graph:
         del self.Adj[v1, v2]
         del self.Adj[v2, v1]
 
-    def block_edge(self, v1, v2, block_time):
-        self.edge_exists_check(v1, v2, expected=True)
-        e = self.get_edge(v1, v2)
-        e.blocked = True
-        e.deadline = block_time
-
-    def is_blocked(self, u, v):
-        return self.get_edge(u, v).blocked
-
     def neighbours(self, u):
-        return [v for v in self.V[u] if not self.is_blocked(u, v)]
+        return self.V[u]
 
     def get_vertices(self):
         return self.V.keys()
@@ -205,7 +193,7 @@ class Graph:
         V = self.get_vertices()
         G = nx.Graph()
         G.add_nodes_from(V)
-        G.add_weighted_edges_from([e.get() for e in self.Adj.values() if not e.blocked])
+        G.add_weighted_edges_from([e.get() for e in self.Adj.values()])
         edge_labels = nx.get_edge_attributes(G, 'weight')
         node_labels = {v: v.describe() for v in G.nodes()}
         if G.number_of_nodes() == 0:
