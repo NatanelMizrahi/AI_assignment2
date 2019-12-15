@@ -30,6 +30,9 @@ class Action:
     def __lt__(self, other):
         return self.action_type <= other.action_type
 
+    def __repr__(self):
+        return self.description
+
     def execute(self):
         if self.callback is not None:
             self.callback()

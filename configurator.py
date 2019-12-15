@@ -11,13 +11,9 @@ class Configurator:
     def get_user_config():
         parser = argparse.ArgumentParser(description='''
         Environment simulator for the Hurricane Evacuation Problem
-        example: python3 test.py -V 1 -K 5 -g tests/23-11__18-08-25.config -a AStar Vandal''')##TODO: Hardcoded specific graph
+        example: python3 test.py -V 1 -K 5 -g tests/23-11__18-08-25.config -a AStar Vandal''')
         parser.add_argument('-g', '--graph_path',    default='tests/basic.config',           help='path to graph initial configuration file')
-        parser.add_argument('-V', '--v_no_ops',      default='1',       type=int,            help='number of vandal max_player\'s no-ops before taking action')
         parser.add_argument('-K', '--base_penalty',  default='2',       type=int,            help='base penalty for losing an evacuation vehicle')
-        parser.add_argument('-L', '--limit',         default='5',       type=int,            help='Real-time A* max_player expansions limit')
-        parser.add_argument('-T',                    default='0',       type=int,          help='search tree expansions time unit')
-        parser.add_argument('-a', '--agents',        default=['AStar'], nargs='+',           help='active max_player types')
         # debug command line arguments
         parser.add_argument('-d', '--debug',         default=True,      action='store_true', help='run in debug mode')
         parser.add_argument('-i', '--interactive',   default=True,      action='store_true', help='run interactively (with graph displays)')

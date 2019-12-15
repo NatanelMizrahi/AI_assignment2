@@ -13,6 +13,7 @@ class MiniMaxTree:
         self.mode = mode
         self.root: Option = self.get_root_node()
         self.nodes: List[Option] = []  # for debug
+        self.env.execute_all_env_actions()
 
     def get_initial_state(self):
         return self.env.get_state(self.max_player)
@@ -26,7 +27,7 @@ class MiniMaxTree:
         """restore environment to actual state after finding a strategy"""
         self.env.apply_state(self.root.state)
 
-    def get_state(self, terminal_node, is_max=True):
+    def get_state(self, terminal_node):
         """ calculates the terminal state by backtracking the terminal node to get all the actions leading to the
             terminal state and executes them.
             This partially solves the concurrency issue caused by the fact that the environment is inherently NOT
@@ -34,13 +35,11 @@ class MiniMaxTree:
         path_to_root = self.backtrack(terminal_node)
         all_agents_actions = [option.action for option in path_to_root]
         self.restore_env()
+        self.env.agent_actions = {}
         self.env.add_agent_actions(all_agents_actions)
-        debug("***PRE***")
-        for k,v in self.env.agent_actions.items():
-            debug('\n\t'.join([str(k)]+[a.description for a in v]))
+        self.env.print_queued_actions("LA'AZAZEL")
         self.env.get_state(self.max_player).describe()
         self.env.execute_all_env_actions()
-        # player = is_max and self.max_player or self.min_player
         return self.env.get_state(self.max_player)
 
     def minimax(self, state_node: Option, depth, a, b, is_max=True):
@@ -48,7 +47,7 @@ class MiniMaxTree:
         state_node.is_max = is_max
         state = state_node.state
         if depth == 0 or state.is_goal():
-            final_state = self.get_state(state_node)  # , is_max)
+            final_state = self.get_state(state_node)
             state_node.state = final_state
             return state_node, self.heuristic(final_state)
 
@@ -95,17 +94,22 @@ class MiniMaxTree:
         self.env.apply_state(state)
         self.env.get_state(agent).describe()
         if agent.terminated:
-            print(agent.name, 'TERMINATED')
             return agent.n_saved #TODO: fix
         src = agent.loc
         self.env.G.dijkstra(src)
         V = self.env.G.get_vertices()
+
         require_evac_nodes = self.env.get_require_evac_nodes()
+        n_can_save = 0
         # find nodes that can be reached before hurricane hits them. create (node, required_pickup_time) pairs
         evac_candidates, can_save = [], []
 
+        if any([self.env.can_reach_before_deadline(v) for v in self.env.get_shelters()]):
+            n_can_save += agent.n_carrying
+
         for v in require_evac_nodes:
-            if self.env.time + v.d <= v.deadline:  # nodes we can reach in time
+            if self.env.can_reach_before_deadline(v) and self.env.can_reach_before_other_agent(agent, v):
+                # nodes we can reach in time
                 time_after_pickup = self.env.time + v.d
                 pickup_shortest_path = list(self.env.G.get_shortest_path(src, v))
                 evac_candidates.append((v, time_after_pickup, pickup_shortest_path))
@@ -116,16 +120,8 @@ class MiniMaxTree:
                                   if v.is_shelter() and time_after_pickup + v.d <= v.deadline]
             if shelter_candidates:
                 can_save.append(u)
-            # debug('\npossible routes for evacuating {}:'.format(u))
-            # for shelter, total_time, dropoff_shortest_path in shelter_candidates:
-                # debug('pickup:(T{}){}(T{}) | drop-off:{}(T{}): Shelter(D{})'.format(self.env.time,
-                #                                                                     pickup_shortest_path,
-                #                                                                     time_after_pickup,
-                #                                                                     dropoff_shortest_path,
-                #                                                                     total_time,
-                #                                                                     shelter.deadline))
-        n_can_save = sum([v.n_people for v in can_save])
-        debug('[SID {}]:{} can save {} (nodes = {})'.format(state.ID, agent.name, n_can_save, can_save))
+        n_can_save += sum([v.n_people for v in can_save])
+        debug('[#{}]:{} can save {} (nodes = {}, carrying ={})'.format(state.ID, agent.name, n_can_save, can_save, agent.n_carrying))
         return n_can_save + agent.n_saved # TODO: fix
 
     def expand_node(self, state: State, agent):
@@ -140,6 +136,7 @@ class MiniMaxTree:
 
     def successor(self, state: State, agent, dest: Union[EvacuateNode, ActionType]):
         """
+        :param agent: the agent to be executing the action
         :param state: a state of the environment in the search tree node
         :param dest: a destination node (TRAVERSE action) or ActionType.TERMINATE (for terminate action)
         :return: Option (action,state) action resulting in the successor state
@@ -166,7 +163,6 @@ class MiniMaxTree:
                 end_time=agent.time,
                 callback=move_agent)
             agent.goto(self.env, dest)
-        # action.describe()
         return Option(action, self.env.get_state(agent))
 
     def backtrack(self, option):
@@ -181,14 +177,9 @@ class MiniMaxTree:
         """plots the search tree"""
         if not Configurator.view_strategy:
             return
-
-        def node_str(node, id):
-            return '{} {}'.format(node.summary(), id)
-        # nodes = {node: node_str(node, id) for id, node in enumerate(self.nodes)}
         nodes = {node: node.summary() for node in self.nodes}
         max_nodes = [nodes[v] for v in nodes.keys() if v.is_max]
         min_nodes = [nodes[v] for v in nodes.keys() if not v.is_max]
-        V = list(nodes.values())
         E = []
         edge_labels = {}
         for node in nodes.keys():

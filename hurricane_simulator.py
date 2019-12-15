@@ -3,7 +3,7 @@ from configurator import Configurator
 from random import choice as rand_choice
 from utils.data_structures import Edge
 from environment import Environment, ShelterNode, EvacuateNode, SmartGraph
-from agents.search_agents import GameAgent
+from agents.minimax_agent import GameAgent
 
 
 class Simulator:

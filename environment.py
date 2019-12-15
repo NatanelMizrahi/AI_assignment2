@@ -85,7 +85,7 @@ class State:
         return '\n'.join([self.agent_state.summary(),
                           self.agent2_state.summary(),
                           repr(self.require_evac_nodes or []),
-                          self.ID])
+                          '#'+self.ID])
 
 
 class Environment:
@@ -112,21 +112,19 @@ class Environment:
     def init_required_evac_nodes(self):
         return set([v for v in self.G.get_vertices() if (not v.is_shelter() and v.n_people > 0)])
 
-    #TODO: convert to pointers
     def get_other_agent(self, agent):
-        if agent.name == self.agents[0].name:
-            return self.agents[1]
-        else:
-            return self.agents[0]
+        return agent is self.agents[0] and self.agents[1] or self.agents[0]
 
     def get_require_evac_nodes(self):
         return shallow_copy(self.require_evac_nodes)
+
+    def get_shelters(self):
+        return [v for v in self.G.get_vertices() if v.is_shelter()]
 
     def add_agent_actions(self, agent_actions_to_add):
         for action in agent_actions_to_add:
             if action.end_time not in self.agent_actions:
                 self.agent_actions[action.end_time] = []
-            # self.agent_actions[action.end_time].append(action)
             insert_sorted(action, self.agent_actions[action.end_time])
 
     def execute_agent_actions(self):
@@ -142,10 +140,6 @@ class Environment:
         while any(self.agent_actions.values()):
             print('T=%d' % self.time)
             self.tick()
-
-    # TODO: delete if works without
-    # def get_agent_locs(self):
-    #     return {v: shallow_copy(v.agents) for v in self.G.get_vertices()}
 
     def get_state(self, agent: AgentType):
         return State(
@@ -175,6 +169,24 @@ class Environment:
         agent2.loc.agents.add(agent2)
         self.agent_actions = state.agent_actions
 
+    def can_reach_before_deadline(self, v):
+        """must be called after calling dijkstra from source vertex"""
+        return self.time + v.d <= v.deadline
+
+    def can_reach_before_other_agent(self, agent, v):
+        """must be called after calling dijkstra from source vertex"""
+        other = self.get_other_agent(agent)
+        return other.dest is not v or other.eta > self.time + v.d
+
+    def print_queued_actions(self, prefix=''):
+        if prefix:
+            print(prefix)
+        for k, v in self.agent_actions.items():
+            print('\n\t'.join([str(k)] + [a.description for a in v]))
+
+    def __repr__(self):
+        return repr((self.mode, self.time))
+
 
 class Option:
     def __init__(self,
@@ -188,4 +200,3 @@ class Option:
 
     def summary(self):
         return '{} v={}'.format(self.state.summary(), self.value)
-        # return '\n'.join([self.state.summary(), 'v={}'.format(self.value)])

@@ -47,7 +47,7 @@ class Agent:
             return False
         return True
 
-    def traverse_duration(self, env, v):
+    def traverse_end_time(self, env, v):
         return self.time + env.G.get_edge(self.loc, v).w
 
     def traverse(self, env: Environment, v: EvacuateNode):
@@ -55,7 +55,6 @@ class Agent:
         self.register_goto_callback(env, v)
 
     def arrive(self, env: Environment, v: EvacuateNode):
-        print('ARV', self.loc, v, self.loc.agents)
         self.loc.agents.remove(self)
         self.loc = v
         v.agents.add(self)
@@ -66,13 +65,8 @@ class Agent:
 
     def goto(self, env: Environment, v: EvacuateNode):
         """simulates a traverse operation locally for an max_player- without updating the environment's entire state"""
-        self.time = self.traverse_duration(env, v)
+        self.time = self.traverse_end_time(env, v)
         self.loc = v
-        # self.goto_str = '->{}[T{}]'.format(v, self.eta)
-        #
-        # self.eta = self.traverse_duration(env, v)
-        # self.dest = v
-        # self.try_evacuate(env, v)
 
     def local_terminate(self):
         """simulates a terminate operation locally for an max_player- without updating the environment's entire state"""
@@ -86,7 +80,7 @@ class Agent:
 
         def goto_node():
             self.arrive(env, v)
-        end_time = self.traverse_duration(env, v)
+        end_time = self.traverse_end_time(env, v)
         goto_action = Action(
             agent=self,
             action_type=ActionType.ARRIVE, #TODO: was traverse
@@ -98,13 +92,6 @@ class Agent:
         self.eta = end_time
         self.goto_str = '->{}'.format(v)
         self.register_action(env, goto_action)
-
-    # def get_targets(self, env: Environment, src):
-    #     V = env.G.get_vertices()
-    #     shelters = [v for v in V if (v != src and v.is_shelter())]
-    #     need_evac = [v for v in V if (v != src and not v.is_shelter() and not v.evacuated)]
-    #     targets = need_evac if self.n_carrying == 0 else shelters
-    #     return targets
 
     def try_evacuate(self, env: Environment, v: EvacuateNode):
         if self.terminated:
