@@ -43,6 +43,7 @@ class MiniMaxTree:
         self.restore_env()
         self.env.agent_actions = {}
         self.env.add_agent_actions(all_agents_actions)
+        self.env.print_queued_actions('PRE:')
         self.env.execute_all_env_actions()
         return self.env.get_state(self.max_player)
 
@@ -124,11 +125,12 @@ class MiniMaxTree:
 
     def heuristic_helper(self, agent, state: State):
         """given a state for an max_player, returns how many people can (!) be saved by the max_player"""
-        self.env.apply_state(state)
+        self.env.apply_state(state, active_agent=agent)
         if agent.terminated:
-            return agent.n_saved #TODO: fix
+            return agent.n_saved
 
         def num_rescuable_carrying():
+            print([(v, self.env.time, v.d, v.deadline, self.env.can_reach_before_deadline(v)) for v in self.env.get_shelters()])
             if any([self.env.can_reach_before_deadline(v) for v in self.env.get_shelters()]):
                 return agent.n_carrying
             return 0
@@ -165,10 +167,9 @@ class MiniMaxTree:
         n_can_save_carrying = num_rescuable_carrying()
         n_can_save_new = sum([v.n_people for v in can_save_nodes])
         total_can_save = n_can_save_carrying + n_can_save_new + n_already_saved
-        debug(agent.time)
         debug('[#{0}]: {1.name} can save {2} (nodes:{3} (={4}) + rescuable carrying ={5} + saved before={1.n_saved})'
               .format(state.ID, agent, total_can_save, can_save_nodes, n_can_save_new, n_can_save_carrying))
-        return total_can_save  # TODO: fix
+        return total_can_save
 
     def expand_node(self, state: State, agent):
         """returns Options (action, state) for all possible moves."""

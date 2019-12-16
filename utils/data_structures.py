@@ -10,8 +10,8 @@ def encode(n):
     CHARS = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     base = len(CHARS)
 
-    def to_base(n, b):
-        return "0" if not n else to_base(n // base, base).lstrip("0") + CHARS[n % b]
+    def to_base(n, base):
+        return "0" if not n else to_base(n // base, base).lstrip("0") + CHARS[n % base]
     return to_base(n, base)
 
 
@@ -172,7 +172,7 @@ class Graph:
         del self.Adj[v2, v1]
 
     def neighbours(self, u):
-        return self.V[u]
+        return sorted(self.V[u], key=lambda v: v.label)
 
     def get_vertices(self):
         return self.V.keys()

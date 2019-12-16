@@ -2,7 +2,7 @@ import re
 from configurator import Configurator
 from random import choice as rand_choice
 from utils.data_structures import Edge
-from environment import Environment, ShelterNode, EvacuateNode, SmartGraph
+from environment import Environment, ShelterNode, EvacuateNode, Graph
 from agents.minimax_agent import GameAgent
 
 
@@ -10,15 +10,13 @@ class Simulator:
     """Hurricane evacuation simulator"""
 
     def __init__(self, mode, depth):
-        self.G: SmartGraph = self.get_graph()
+        self.G: Graph = self.get_graph()
         self.env: Environment = Environment(self.G, mode, depth)
-        self.G.env = self.env
 
     def get_graph(self):
         if Configurator.graph_path is 'random':
             return Configurator.randomize_config()
-        else:
-            return self.parse_graph(Configurator.graph_path)
+        return self.parse_graph(Configurator.graph_path)
 
     def parse_graph(self, path):
         """Parse and create graph from tests file, syntax same as in assignment instructions"""
@@ -66,7 +64,7 @@ class Simulator:
         V = person_nodes + shelter_nodes
         if n_vertices != len(V):
             raise Exception("Error: |V| != N")
-        return SmartGraph(V, E)
+        return Graph(V, E)
 
     def init_agents(self):
         shelters = [v for v in self.G.get_vertices() if v.is_shelter()]

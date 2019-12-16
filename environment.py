@@ -40,16 +40,6 @@ class ShelterNode(EvacuateNode):
     def describe(self):
         return 'Shelter\n' + super().describe()
 
-
-class SmartGraph(Graph):
-    """A variation of a graph that accounts for edge and node deadlines when running dijkstra"""
-
-    def __init__(self, V: List[Node]=[], E: List[Edge]=[], env=None):
-        """:param env: the enclosing environment in which the graph "lives". Used to access the environment's time."""
-        super().__init__(V, E)
-        self.env = env
-
-
 class State:
     ID = count(0)
 
@@ -130,7 +120,6 @@ class Environment:
         queued_actions = self.agent_actions.get(self.time)
         if queued_actions:
             for action in queued_actions:
-                # print('[EXECUTING]' + action.description)
                 action.execute()
             del self.agent_actions[self.time]
 
@@ -150,13 +139,13 @@ class Environment:
             self.agent_actions
         )
 
-    def apply_state(self, state: State):
+    def apply_state(self, state: State, active_agent=None):
         """applies a state to the environment, in terms of the max_player's state variables & node evacuation status"""
         agent, to_copy = state.agent, state.agent_state
         agent2, to_copy2 = state.agent2, state.agent2_state
         agent.update(to_copy)
         agent2.update(to_copy2)
-        self.time = agent.time
+        self.time = (active_agent is agent) and agent.time or agent2.time
         self.require_evac_nodes = shallow_copy(state.require_evac_nodes)
         for v in self.G.get_vertices():
             v.agents = set([])

@@ -2,7 +2,7 @@ import argparse
 from random import sample
 from datetime import datetime
 from utils.data_structures import Edge
-from environment import Environment, ShelterNode, EvacuateNode, SmartGraph
+from environment import ShelterNode, EvacuateNode, Graph
 
 
 class Configurator:
@@ -25,7 +25,7 @@ class Configurator:
                             help='game mode')
 
         parser.add_argument('-t', '--tie_breaker',
-                            default='goal',  choices=['goal', 'shelter', 'coop'],
+                            default=None,  choices=['goal', 'shelter', 'coop'],
                             help='tie breaker for same value nodes in the minimax tree')
 
         # debug command line arguments
@@ -43,18 +43,41 @@ class Configurator:
         def legal_config(G):
             inf = float('inf')
             V = G.get_vertices()
+            # Graph cannot be empty
             if not V:
-                return False  # Graph cannot be empty
-            # must have at least one shelter node
-            has_shelter = any([isinstance(v, ShelterNode) for v in V])
+                return False
+
+            # Graph must have at least one shelter node
+            shelters = [v for v in G.get_vertices() if v.is_shelter()]
+            has_shelter = len(shelters) > 0
             if not has_shelter:
                 return False
-            s = list([v for v in V if v.is_shelter()])[0]
-            # all nodes must be initially connected
-            G.dijkstra(s)
+
+            # All nodes must be connected
+            G.dijkstra(shelters[0])
             all_reachable = all([v.d < inf for v in V])
-            n_doomed_initial = sum([v.n_people for v in V if 2*v.d > v.deadline or 2*v.d > s.deadline])
-            return has_shelter and all_reachable and n_doomed_initial == 0
+            if not all_reachable:
+                return False
+
+            # all nodes must have some evacuation path (pickup from any shelter + dropoff to another)
+            need_evac = [v for v in V if not v.is_shelter() and v.n_people > 0]
+            for s1 in shelters:
+                G.dijkstra(s1)
+                for s2 in shelters:
+                    pickup_time = [v.d for v in need_evac]
+                    G.dijkstra(s2)
+                    dropoff_time = [v.d for v in need_evac]
+                    total_time = zip(need_evac, pickup_time, dropoff_time)
+                    for v, pickup, dropoff in total_time:
+                        if (pickup < v.deadline) and (dropoff < s2.deadline):
+                            # found an evac route for v
+                            need_evac.remove(v)
+
+            if len(need_evac) > 0:
+                # some nodes can't be saved to begin with
+                return False
+
+            return True
 
         def rand_bool(prob=2):
             return sample(range(60), 1)[0] < 60 / prob
@@ -62,7 +85,7 @@ class Configurator:
         def rand_weight(u, v):
             return sample(range(1, min(u.deadline, v.deadline)+1), 1)[0]
 
-        G = SmartGraph()
+        G = Graph()
         while not legal_config(G):
             V = []
             E = []
@@ -78,9 +101,10 @@ class Configurator:
                 for v in V[:-1]:
                     if rand_bool(3):
                         E.append(Edge(u, v, rand_weight(u, v), 'E0'))
-            G = SmartGraph(V, E, Environment(G, Configurator.mode))
-        Configurator.v_no_ops, Configurator.base_penalty = sample(range(5), 2)
-        print('base penalty: {}; # vandal no ops: {}'.format(Configurator.base_penalty, Configurator.v_no_ops))
+            G = Graph(V, E)
+
+        _, Configurator.base_penalty = sample(range(5), 2)
+        print('base penalty: {}'.format(Configurator.base_penalty))
         filename = 'tests/{:%d-%m__%H-%M-%S}.config'.format(datetime.now())
         lines = []
         # save new configuration in file for review
