@@ -12,12 +12,26 @@ class Configurator:
         parser = argparse.ArgumentParser(description='''
         Environment simulator for the Hurricane Evacuation Problem
         example: python3 test.py -V 1 -K 5 -g tests/23-11__18-08-25.config -a AStar Vandal''')
-        parser.add_argument('-g', '--graph_path',    default='tests/basic.config',           help='path to graph initial configuration file')
-        parser.add_argument('-K', '--base_penalty',  default='2',       type=int,            help='base penalty for losing an evacuation vehicle')
+        parser.add_argument('-g', '--graph_path',
+                            default='tests/basic.config',
+                            help='path to graph initial configuration file')
+
+        parser.add_argument('-K', '--base_penalty',
+                            default='2',   type=int,
+                            help='base penalty for losing an evacuation vehicle')
+
+        parser.add_argument('-m', '--mode',
+                            default='adversarial',  choices=['adversarial', 'cooperative', 'semi-cooperative'],
+                            help='game mode')
+
+        parser.add_argument('-t', '--tie_breaker',
+                            default='goal',  choices=['goal', 'shelter', 'coop'],
+                            help='tie breaker for same value nodes in the minimax tree')
+
         # debug command line arguments
-        parser.add_argument('-d', '--debug',         default=True,      action='store_true', help='run in debug mode')
-        parser.add_argument('-i', '--interactive',   default=True,      action='store_true', help='run interactively (with graph displays)')
-        parser.add_argument('-s', '--view_strategy', default=True,      action='store_true', help='plot search agents strategy trees')
+        parser.add_argument('-d', '--debug',         default=True,  action='store_true',        help='run in debug mode')
+        parser.add_argument('-i', '--interactive',   default=True,  action='store_true',        help='run interactively (with graph displays)')
+        parser.add_argument('-s', '--view_strategy', default=True,  action='store_true',        help='plot search agents strategy trees')
 
         args = vars(parser.parse_args())
         for k, v in args.items():
@@ -64,7 +78,7 @@ class Configurator:
                 for v in V[:-1]:
                     if rand_bool(3):
                         E.append(Edge(u, v, rand_weight(u, v), 'E0'))
-            G = SmartGraph(V, E, Environment(G, "Adversarial")) #TODO: Hardcoded Adversarial for now.
+            G = SmartGraph(V, E, Environment(G, "adversarial")) #TODO: Hardcoded adversarial for now.
         Configurator.v_no_ops, Configurator.base_penalty = sample(range(5), 2)
         print('base penalty: {}; # vandal no ops: {}'.format(Configurator.base_penalty, Configurator.v_no_ops))
         filename = 'tests/{:%d-%m__%H-%M-%S}.config'.format(datetime.now())

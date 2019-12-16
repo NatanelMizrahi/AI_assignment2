@@ -5,7 +5,7 @@ from action import Action
 from itertools import count
 
 AgentType = TypeVar('Agent')
-GameMode = Union['Adversarial', 'Cooperative', 'Semi-cooperative']
+GameMode = Union['adversarial', 'cooperative', 'semi-cooperative']
 
 
 class EvacuateNode(Node):
@@ -73,7 +73,7 @@ class State:
         return {time: shallow_copy(actions) for time, actions in agent_actions.items()}
 
     def is_goal(self):
-        return self.agent_state.terminated or self.agent2_state.terminated
+        return self.agent_state.terminated #or self.agent2_state.terminated
 
     def describe(self):
         print("State: [{:<20}{:<20}Evac:{}]"

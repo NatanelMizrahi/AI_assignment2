@@ -7,8 +7,7 @@ from typing import List, Dict, Tuple, Set
 
 
 def encode(n):
-    CHARS = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" \
-            # "ÂÄÆÃÅĀÁÀáâäæãåāïíīįìÎÍĪĮÌôöòóœøōõûüùúūÛÜÙÚŪèéêëēėęÈÉÊËĒĖĘŃŠćčç"
+    CHARS = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     base = len(CHARS)
 
     def to_base(n, b):
