@@ -86,7 +86,7 @@ class Agent:
         end_time = self.traverse_end_time(env, v)
         goto_action = Action(
             agent=self,
-            action_type=ActionType.ARRIVE, #TODO: was traverse
+            action_type=ActionType.ARRIVE,
             description='{}: Go from {} to {} (end_time: {})'.format(self.name, self.loc, v.label, end_time),
             callback=goto_node,
             end_time=end_time
@@ -128,7 +128,7 @@ class Agent:
         if action.action_type is not ActionType.TERMINATE:  # immediate action - no delay
             env.add_agent_actions([action])
         self.actions_seq.append(action)
-        self.time = max(self.time, action.end_time) #TODO: redundant, see if dropping it causes any bugs
+        self.time = max(self.time, action.end_time)
         if verbose:
             print('\n[REGISTERED]' + action.description)
 

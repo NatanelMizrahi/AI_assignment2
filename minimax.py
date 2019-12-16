@@ -13,6 +13,12 @@ class MiniMaxTree:
         self.mode = mode
         self.root: Option = self.get_root_node()
         self.nodes: List[Option] = []  # for debug
+        self.sync_env() # start by
+
+    def sync_env(self):
+        """ some of the actions in the environment may not have completed (e.g. agents in transit).
+            This function brings the environment to the point that all the agents have finished their prior moves
+            before creating the minimax tree. NOT TO BE CONFUSED WITH restore_env()"""
         self.env.execute_all_env_actions()
 
     def get_initial_state(self):
@@ -20,7 +26,6 @@ class MiniMaxTree:
 
     def get_root_node(self):
         """creates a root node for the search tree representing the initial state"""
-        self.get_initial_state().describe()
         return Option(Action(self.max_player, description='ROOT'), self.get_initial_state())
 
     def restore_env(self):
@@ -34,11 +39,10 @@ class MiniMaxTree:
             turn based: one agent can do a single long traverse move while the other can do several shorter moves"""
         path_to_root = self.backtrack(terminal_node)
         all_agents_actions = [option.action for option in path_to_root]
+
         self.restore_env()
         self.env.agent_actions = {}
         self.env.add_agent_actions(all_agents_actions)
-        self.env.print_queued_actions("DAMMIT")
-        self.env.get_state(self.max_player).describe()
         self.env.execute_all_env_actions()
         return self.env.get_state(self.max_player)
 
@@ -67,6 +71,7 @@ class MiniMaxTree:
                     value = temp
                 a = max(a, value)
                 if a >= b:
+                    print("PRUNED: " + state.ID)
                     break
         else:  # MIN player
             value = float('inf')
@@ -82,6 +87,7 @@ class MiniMaxTree:
                     value = temp
                 b = min(b, value)
                 if a >= b:
+                    print("PRUNED: " + state.ID)
                     break
         state_node.value = value
         return choice, value

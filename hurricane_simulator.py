@@ -76,17 +76,19 @@ class Simulator:
             self.env.agents.append(new_agent)
             start_vertex.agents.add(new_agent)
 
+    def run_agents(self):
+        for agent in self.env.agents:
+            title = 'T=%d: %s ' % (self.env.time, agent.name)
+            self.env.G.display(title + 'PRE')
+            agent.act(self.env)
+            self.env.G.display(title+'POST')
+
     def run_simulation(self):
         self.init_agents()
         print('** STARTING SIMULATION **')
         while not self.env.all_terminated():
-            tick = self.env.time
-            print('\nT={}'.format(tick))
-            self.env.execute_agent_actions() #TODO: split tick()
-            for agent in self.env.agents:
-                self.env.G.display('T={}: {} PRE'.format(tick, agent.name))
-                agent.act(self.env)
-                self.env.G.display('T={}: {} POST'.format(tick, agent.name))
-            self.env.time += 1 #TODO: split tick()
-            # self.env.tick()
+            print('\nT=%d' % self.env.time)
+            self.env.execute_agent_actions()
+            self.run_agents()
+            self.env.time += 1
         self.env.G.display('Final State: T=' + str(self.env.time))

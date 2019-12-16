@@ -4,12 +4,11 @@ from minimax import MiniMaxTree
 
 
 class GameAgent(Agent):
-    def __init__(self, name, start_loc: EvacuateNode, max_expand=float('inf')):
+    def __init__(self, name, start_loc: EvacuateNode):
         super().__init__(name, start_loc)
-        self.max_expand = max_expand
 
     def act(self, env: Environment):
-        """pop the next action in strategy and execute it"""
+        """find the best action and execute it"""
         if not self.is_available(env):
             return
         MMtree = MiniMaxTree(env, self, env.get_other_agent(self), mode=env.mode)
@@ -18,10 +17,7 @@ class GameAgent(Agent):
                                         a=float('-inf'),
                                         b=float('inf'),
                                         is_max=True)
-        MMtree.display()
-        MMtree.restore_env()
-        # self.register_action(env, best_choice.action)
+        MMtree.display()      # view the minimax decision tree
+        MMtree.restore_env()  # restore the environment to the state it was in before this function was called
         best_choice.action.execute()
-        env.print_queued_actions("POST EXEC")
-        # env.G.display()
 

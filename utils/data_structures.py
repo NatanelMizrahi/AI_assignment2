@@ -3,12 +3,12 @@ import heapq
 import networkx as nx
 import matplotlib.pyplot as plt
 from heapq import _siftdown
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Set
 
 
 def encode(n):
     CHARS = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" \
-            "ÂÄÆÃÅĀÁÀáâäæãåāïíīįìÎÍĪĮÌôöòóœøōõûüùúūÛÜÙÚŪèéêëēėęÈÉÊËĒĖĘŃŠćčç"
+            # "ÂÄÆÃÅĀÁÀáâäæãåāïíīįìÎÍĪĮÌôöòóœøōõûüùúūÛÜÙÚŪèéêëēėęÈÉÊËĒĖĘŃŠćčç"
     base = len(CHARS)
 
     def to_base(n, b):
@@ -59,29 +59,7 @@ class Heap:
         return str([str(e) for e in self.set])
 
 
-class Stack:
-    def __init__(self):
-        self.stack = []
-
-    def is_empty(self):
-        return len(self.stack) == 0
-
-    def push(self, element):
-        self.stack.append(element)
-
-    def pop(self):
-        try:
-            return self.stack.pop()
-        except:
-            raise Exception("Error: {} empty!!".format(self.__class__.__name__))
-
-
-class Queue(Stack):
-    def push(self, element):
-        self.stack.insert(0, element)
-
-
-## GRAPH ##
+# GRAPH #
 class Node:
     """A base Node class for nodes used in the Graph class"""
 
@@ -144,7 +122,7 @@ class Graph:
     def __init__(self, V: List[Node]=[], E: List[Edge]=[]):
         self.pos = None  # used to maintain vertices position in visualization
         self.n_vertices = 0
-        self.V: Dict[Node, List[Node]] = {}
+        self.V: Dict[Node, Set[Node]] = {}
         self.Adj: Dict[Tuple[Node, Node], Edge] = {}
         self.init(V, E)
 

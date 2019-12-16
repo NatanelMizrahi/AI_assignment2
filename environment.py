@@ -99,7 +99,6 @@ class Environment:
         self.agent_actions = {}
 
     def tick(self):
-        #TODO: changed order, check
         self.execute_agent_actions()
         self.time += 1
 
