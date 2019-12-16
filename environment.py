@@ -89,7 +89,7 @@ class State:
 
 
 class Environment:
-    def __init__(self, G, mode: GameMode='Adverserial', depth=3):
+    def __init__(self, G, mode: GameMode='adversarial', depth=3):
         self.time = 0
         self.G: SmartGraph = G
         self.mode = mode

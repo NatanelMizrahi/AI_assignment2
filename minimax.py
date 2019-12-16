@@ -46,40 +46,45 @@ class MiniMaxTree:
         self.env.execute_all_env_actions()
         return self.env.get_state(self.max_player)
 
+    def get_other_player(self, player):
+        return player is self.min_player and self.max_player or self.min_player
+
     #TODO: review this tie-breaker
     def tie_breaker(self, agent, option, current_best_option):
-        agent_state = agent is option.state.agent and option.state.agent_state or option.state.agent2_state
         print('Tie: %s VS. %s' % (current_best_option.state.ID, option.state.ID))
-        if self.mode is 'semi-coop':
+        if self.mode is 'semi-cooperative':
             current_best_state = self.get_final_state(current_best_option)
             other_state = self.get_final_state(option)
-            current_h = self.heuristic(self, current_best_state, 'cooperative')
-            other_h = self.heuristic(self, other_state, 'cooperative')
+            current_h = self.heuristic(self, current_best_state, True, 'cooperative')
+            other_h = self.heuristic(self, other_state, True, 'cooperative')
             return other_h > current_h
 
+        agent_state = agent is option.state.agent and option.state.agent_state or option.state.agent2_state
         return (Configurator.tie_breaker is 'goal' and option.state.is_goal()) or \
                (Configurator.tie_breaker is 'shelter' and agent_state.loc.is_shelter())
 
-    def minimax(self, state_node: Option, depth, a, b, is_max=True):
+    def minimax(self, state_node: Option, depth, a, b, current_player, is_max=True):
         self.nodes.append(state_node)
         state_node.is_max = is_max
         state = state_node.state
+        other_player = self.get_other_player(current_player)
         if depth == 0 or state.is_goal():
             final_state = self.get_final_state(state_node)
-            utility = self.heuristic(final_state)
+            utility = self.heuristic(final_state, is_max)
             state_node.state = final_state
             state_node.value = utility
             return state_node, utility
 
         if is_max:  # MAX player
             value = float('-inf')
-            options = self.expand_node(state, self.max_player)
+            options = self.expand_node(state, current_player)
             choice = None
             for opt in options:
                 opt.parent = state_node
-                min_option, min_option_value = self.minimax(opt, depth-1, a, b, is_max=False)
+                is_coop = self.mode is 'cooperative'
+                min_option, min_option_value = self.minimax(opt, depth-1, a, b, other_player, is_max=is_coop)
                 temp = max(value, min_option_value)
-                if temp > value or (temp == opt.value and self.tie_breaker(self.max_player, opt, choice)):
+                if temp > value or (temp == opt.value and self.tie_breaker(current_player, opt, choice)):
                     choice = opt
                     value = temp
                 a = max(a, value)
@@ -88,13 +93,13 @@ class MiniMaxTree:
                     break
         else:  # MIN player
             value = float('inf')
-            options = self.expand_node(state, self.min_player)
+            options = self.expand_node(state, current_player)
             choice = None
             for opt in options:
                 opt.parent = state_node
-                max_option, max_option_value = self.minimax(opt, depth-1, a, b, is_max=True)
+                max_option, max_option_value = self.minimax(opt, depth-1, a, b, other_player, is_max=True)
                 temp = min(value, max_option_value)
-                if temp < value or (temp == opt.value and self.tie_breaker(self.min_player, opt, choice)):
+                if temp < value or (temp == opt.value and self.tie_breaker(current_player, opt, choice)):
                     choice = opt
                     value = temp
                 b = min(b, value)
@@ -104,13 +109,18 @@ class MiniMaxTree:
         state_node.value = value
         return choice, value
 
-    def heuristic(self, state: State, alternative_mode=None):
+    def heuristic(self, state: State, is_max, alternative_mode=None):
         mode = alternative_mode or self.mode
-        if mode is 'semi_cooperative':
-            return self.heuristic_helper(self.max_player, state) #TODO: should be current player
+        sign = is_max and 1 or -1
+        if mode is 'semi-cooperative':
+            agent = is_max and self.max_player or self.min_player
+            return sign * self.heuristic_helper(agent, state)
         h1 = self.heuristic_helper(self.max_player, state)
         h2 = self.heuristic_helper(self.min_player, state)
-        return (h1 - h2) if mode is 'adversarial' else (h1 + h2)
+        if mode is 'adversarial':
+            return h1 - h2
+        if mode is 'cooperative':
+            return h1 + h2
 
     def heuristic_helper(self, agent, state: State):
         """given a state for an max_player, returns how many people can (!) be saved by the max_player"""
@@ -152,11 +162,13 @@ class MiniMaxTree:
         evac_candidates = get_evac_candidates()
         can_save_nodes = can_reach_shelter(evac_candidates)
         n_already_saved = agent.n_saved
-        n_can_save = num_rescuable_carrying()
-        n_can_save += sum([v.n_people for v in can_save_nodes])
-        debug('[#{}]:{} can save {} (nodes = {}, carrying ={})'
-              .format(state.ID, agent.name, n_can_save, can_save_nodes, agent.n_carrying))
-        return n_can_save + n_already_saved # TODO: fix
+        n_can_save_carrying = num_rescuable_carrying()
+        n_can_save_new = sum([v.n_people for v in can_save_nodes])
+        total_can_save = n_can_save_carrying + n_can_save_new + n_already_saved
+        debug(agent.time)
+        debug('[#{0}]: {1.name} can save {2} (nodes:{3} (={4}) + rescuable carrying ={5} + saved before={1.n_saved})'
+              .format(state.ID, agent, total_can_save, can_save_nodes, n_can_save_new, n_can_save_carrying))
+        return total_can_save  # TODO: fix
 
     def expand_node(self, state: State, agent):
         """returns Options (action, state) for all possible moves."""

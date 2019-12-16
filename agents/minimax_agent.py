@@ -16,6 +16,7 @@ class GameAgent(Agent):
                                         depth=env.depth,
                                         a=float('-inf'),
                                         b=float('inf'),
+                                        current_player=self,
                                         is_max=True)
         MMtree.display()      # view the minimax decision tree
         MMtree.restore_env()  # restore the environment to the state it was in before this function was called
