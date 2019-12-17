@@ -13,6 +13,3 @@ class GameAgent(Agent):
             return
         best_move = MiniMaxTree(env, self, env.get_other_agent(self), mode=env.mode).get_best_move()
         best_move.execute()
-
-        env.print_queued_actions("POST2 %s" % self.name)
-

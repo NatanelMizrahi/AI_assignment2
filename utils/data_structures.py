@@ -64,7 +64,7 @@ class Node:
 
     def __init__(self, label):
         self.label = label
-        # dijkstra algorithm aux variables:
+        # dijkstra algorithm auxiliary variables:
         self.d = 0
         self.prev = None
 
@@ -87,7 +87,7 @@ class Node:
         return self.label
 
     def summary(self):
-        return '' # if not self.prev else '\nD[{}];P[{}]'.format(self.d, self.prev.label)
+        return '' # if not self.prev else '\nD[{}];P[{}]'.format(self.d, self.prev.label) # view dijkstra variables
 
 
 class Edge:
@@ -99,7 +99,6 @@ class Edge:
         self.v1 = v1
         self.v2 = v2
         self.w = w
-        self.deadline = float('inf')
 
     def get(self):
         return self.v1, self.v2, self.w
@@ -181,8 +180,6 @@ class Graph:
         return self.Adj.values()
 
     def display(self, graph_id=0, output_path='.', save_img=False):
-        # if not Configurator.interactive:
-        #     return
         filename = '{0}/graph_{1}.png'.format(output_path, graph_id)
         V = self.get_vertices()
         G = nx.Graph()
@@ -207,14 +204,16 @@ class Graph:
 
     @staticmethod
     def shortest_path_successor(src, target):
-        """returns source node's successor in the shortest path to target. Must run dijkstra(src) before calling this function"""
+        """ returns source node's successor in the shortest path to target.
+            Must run dijkstra(src) before calling this function"""
         v = target
         while v.prev != src:
             v = v.prev
         return v
 
     def get_shortest_path(self, src, target):
-        """finds the shortest path from source to target node in graph. Must run dijkstra(src) before calling this function"""
+        """ finds the shortest path from source to target node in graph.
+            Must run dijkstra(src) before calling this function"""
         path = [target]
         v = target
         # len(shortest path) <= |V|- 1
@@ -226,7 +225,8 @@ class Graph:
         raise Exception('path does not exist: {} -> {}'.format(src, target))
 
     def print_shortest_paths(self, src):
-        """prints all the shortest paths from source node. Must run dijkstra(src) before calling this function"""
+        """ prints all the shortest paths from source node.
+            Must run dijkstra(src) before calling this function"""
         print("shortest paths from: " + src.label)
         for v in self.get_vertices():
             print(v.label + ': ' + '->'.join([v.label for v in self.get_shortest_path(src, v)]))

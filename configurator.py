@@ -13,8 +13,8 @@ class Configurator:
         Environment simulator for the Hurricane Evacuation Problem
         example: python3 test.py -K 5 -g tests/test0.config''')
         parser.add_argument('-g', '--graph_path',
-                            # default='random',
-                            default='tests/coop.config',
+                            default='random',
+                            # default='tests/coop.config',
                             # default='tests/test7.config',
                             help='path to graph initial configuration file')
 
@@ -37,9 +37,13 @@ class Configurator:
                             help='tie breaker for same value nodes in the minimax tree')
 
         # debug command line arguments
-        parser.add_argument('-d', '--debug',         default=True,  action='store_true',        help='run in debug mode')
-        parser.add_argument('-i', '--interactive',   default=True,  action='store_true',        help='run interactively (with graph displays)')
-        parser.add_argument('-s', '--view_strategy', default=True,  action='store_true',        help='plot search agents strategy trees')
+        parser.add_argument('-d', '--debug',
+                            default=True,  action='store_true',
+                            help='run in debug mode')
+
+        parser.add_argument('-s', '--view_strategy',
+                            default=True,  action='store_true',
+                            help='plot search agents strategy trees')
 
         args = vars(parser.parse_args())
         for k, v in args.items():
@@ -48,7 +52,9 @@ class Configurator:
 
     @staticmethod
     def randomize_config():
-        def legal_config(G):
+        """Randomize an initial configuration for the hurricane evacuation graph until it meets the constraints below"""
+
+        def is_legal_config(G):
             inf = float('inf')
             V = G.get_vertices()
             # Graph cannot be empty
@@ -72,7 +78,7 @@ class Configurator:
             if not all_reachable:
                 return False
 
-            # all nodes must have some evacuation path (pickup from any shelter + dropoff to another)
+            # all nodes must have some evacuation path (pickup from any shelter + drop-off to another)
             need_evac = [v for v in V if not v.is_shelter() and v.n_people > 0]
             for s1 in shelters:
                 G.dijkstra(s1)
@@ -82,8 +88,8 @@ class Configurator:
                     dropoff_time = [v.d for v in need_evac]
                     total_time = zip(need_evac, pickup_time, dropoff_time)
                     for v, pickup, dropoff in total_time:
-                        if (pickup < v.deadline) and (dropoff < s2.deadline):
-                            # found an evac route for v
+                        if (pickup < v.deadline) and (dropoff < s2.deadline):  # found an evacuation route for v
+
                             need_evac.remove(v)
 
             if len(need_evac) > 0:
@@ -92,27 +98,27 @@ class Configurator:
 
             return True
 
-        def rand_bool(prob=2):
-            return sample(range(60), 1)[0] < 60 / prob
+        def rand_bool(prob=0.5):
+            return sample(range(60), 1)[0] < 60 * prob
 
         def rand_weight(u, v):
             return sample(range(1, min(u.deadline, v.deadline)+1), 1)[0]
 
         G = Graph()
-        while not legal_config(G):
+        while not is_legal_config(G):
             V = []
             E = []
-            N = sample(range(3, 8), 1)[0]
+            N = sample(range(4, 8), 1)[0]
             L = ['V{}'.format(i) for i in range(N)]
             D = sample(range(1, 2 * N), N)
             P = sample(range(0, 20), N)
 
             for node_args in zip(L, D, P):
-                node_type = ShelterNode if rand_bool(5) else EvacuateNode
+                node_type = ShelterNode if rand_bool(prob=0.2) else EvacuateNode
                 u = node_type(*node_args)
                 V.append(u)
                 for v in V[:-1]:
-                    if rand_bool(3):
+                    if rand_bool(prob=0.33):
                         E.append(Edge(u, v, rand_weight(u, v), 'E0'))
             G = Graph(V, E)
 
@@ -120,11 +126,11 @@ class Configurator:
         print('base penalty: {}'.format(Configurator.base_penalty))
         filename = 'tests/{:%d-%m__%H-%M-%S}.config'.format(datetime.now())
         lines = []
-        # save new configuration in file for review
+        # save the new configuration in file for review/ reuse
         with open(filename, 'w') as config_file:
             lines.append('#N {}'.format(N))
             for v in V:
-                if (isinstance(v,ShelterNode)):
+                if v.is_shelter():
                     lines.append('#{} D{} S'.format(v.label, v.deadline))
                 else:
                     lines.append('#{} D{} P{}'.format(v.label, v.deadline, v.n_people))

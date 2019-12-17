@@ -17,7 +17,7 @@ class Agent:
         self.time = 0
         self.dest = None
         self.eta = 0
-        self.goto_str = '' # used for debug
+        self.goto_str = ''  # used for debug
         print("{}({}) created in {}".format(self.name, self.__class__.__name__, start_loc))
 
     def is_available(self, env: Environment):
@@ -35,10 +35,10 @@ class Agent:
             for i, v in enumerate(possible_steps):
                 print('{}. {} -> {}'.format(i, self.loc.label, v.summary().replace('\n', ' ')))
             print('{}. TERMINATE\n'.format(len(possible_steps)))
-        return list(possible_steps)
+        return possible_steps
 
     def is_reachable(self, env: Environment, v: EvacuateNode, verbose=False):
-        """returns True iff transit to node v can be finished within v's deadline AND (u,v) is not blocked"""
+        """returns True iff transit to node v can be finished within v's deadline"""
         e = env.G.get_edge(self.loc, v)
         if self.time + e.w > v.deadline:
             if verbose:
@@ -64,7 +64,7 @@ class Agent:
         self.try_evacuate(env, v)
 
     def goto(self, env: Environment, v: EvacuateNode):
-        """simulates a traverse operation locally for an max_player- without updating the environment's entire state"""
+        """simulates a traverse operation locally for an agent without updating the environment's entire state"""
         if not self.is_reachable(env, v, verbose=True):
             self.local_terminate()
             return
@@ -72,7 +72,7 @@ class Agent:
         self.loc = v
 
     def local_terminate(self):
-        """simulates a terminate operation locally for an max_player- without updating the environment's entire state"""
+        """simulates a terminate operation locally for an agent without updating the environment's entire state"""
         self.penalty = self.n_carrying + Configurator.base_penalty  # TODO: fix formula
         self.terminated = True
 
@@ -112,7 +112,6 @@ class Agent:
             env.require_evac_nodes.remove(v)
 
     def terminate(self, env: Environment):
-        # self.penalty = env.total_unsaved()
         if self.n_carrying > 0:
             self.penalty += Configurator.base_penalty + self.n_carrying
         self.terminated = True
@@ -135,9 +134,6 @@ class Agent:
     def summary(self):
         terminate_string = '[${}]'.format(self.get_score()) if self.terminated else ''
         return '{0.name}:{0.loc}{0.goto_str}|S{0.n_saved}|C{0.n_carrying}|T{0.time}'.format(self) + terminate_string
-
-    def describe(self):
-        print(self.summary())
 
     def get_agent_state(self):
         return shallow_copy(self)

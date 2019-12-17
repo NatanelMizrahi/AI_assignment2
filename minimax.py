@@ -6,6 +6,7 @@ from action import Action, ActionType
 
 
 class Option:
+    """Represents an (action, result-state) node in a Minimax tree"""
     def __init__(self,
                  action: Action,
                  state: State):
@@ -27,35 +28,33 @@ class MiniMaxTree:
         self.mode = mode
         self.nodes: List[Option] = []  # for debug
         self.env_initial_state: State = self.get_initial_state()
-        self.root: Option = self.get_root_node() #TODO: was before sync env!!
+        self.root: Option = self.get_root_node()
 
     def sync_env(self):
         """ some of the actions in the environment may not have completed (e.g. agents in transit).
             This function brings the environment to the point that all the agents have finished their prior moves
             before creating the minimax tree. NOT TO BE CONFUSED WITH restore_env()"""
-        self.env.print_queued_actions("PRE:: T=%d" % self.env.time)
-        self.env.get_state(self.max_player).describe()
         self.env.execute_all_env_actions()
-        self.env.print_queued_actions("POST:: T=%d" % self.env.time)
-        self.env.get_state(self.max_player).describe()
 
     def get_initial_state(self):
         return self.env.get_state(self.max_player)
 
     def get_root_node(self):
-        """Completes queued actions in env + creates a root node for the search tree representing the initial state"""
+        """ First, creates the proper initial state by completing queued actions in the environment.
+            Then, creates a root node for the search tree representing the initial state"""
         self.sync_env()
         return Option(Action(self.max_player, description='Dummy action (Tree Root)'), self.get_initial_state())
 
     def restore_root_state(self):
         """restore environment to the state in the root node - right after completing the actions initially in queue"""
         self.env.apply_state(self.root.state)
+        self.env.agent_actions = {}
 
     def restore_env(self):
         """restore environment to actual state after finding a strategy"""
         self.env.apply_state(self.env_initial_state)
 
-    def get_final_state(self, terminal_node):
+    def get_terminal_state(self, terminal_node):
         """ calculates the terminal state by backtracking the terminal node to get all the actions leading to the
             terminal state and executes them.
             This partially solves the concurrency issue caused by the fact that the environment is inherently NOT
@@ -64,7 +63,6 @@ class MiniMaxTree:
         all_agents_actions = [option.action for option in path_to_root]
 
         self.restore_root_state()
-        self.env.agent_actions = {}
         self.env.add_agent_actions(all_agents_actions)
         self.env.execute_all_env_actions()
         return self.env.get_state(self.max_player)
@@ -74,12 +72,14 @@ class MiniMaxTree:
 
     #TODO: review this tie-breaker
     def tie_breaker(self, agent, option, current_best_option):
-        print('Tie: %s VS. %s' % (current_best_option.state.ID, option.state.ID))
+        debug('Tie: %s VS. %s' % (current_best_option.state.ID, option.state.ID))
+        # TODO: fix semi-coop logic
         if self.mode is 'semi-cooperative':
-            current_best_state = self.get_final_state(current_best_option)
-            other_state = self.get_final_state(option)
+
+            current_best_state = self.get_terminal_state(current_best_option)
+            other_option_state = self.get_terminal_state(option)
             current_h = self.heuristic(self, current_best_state, True, 'cooperative')
-            other_h = self.heuristic(self, other_state, True, 'cooperative')
+            other_h   = self.heuristic(self, other_option_state, True, 'cooperative')
             return other_h > current_h
 
         agent_state = agent is option.state.agent and option.state.agent_state or option.state.agent2_state
@@ -87,27 +87,27 @@ class MiniMaxTree:
                (Configurator.tie_breaker is 'shelter' and agent_state.loc.is_shelter())
 
     def get_best_move(self):
+        depth = 1 if self.mode is 'semi-cooperative' else self.env.depth
         best_move, _ = self.minimax(state_node=self.root,
-                                    depth=self.env.depth,
+                                    depth=depth,
                                     a=float('-inf'),
                                     b=float('inf'),
                                     current_player=self.max_player,
                                     is_max=True)
         self.display()      # view the minimax decision tree
-        self.restore_env()  # restore the environment to the state it was in before this function was called
-        self.env.print_queued_actions("POST %s" % self.max_player.name)
-
+        self.restore_env()  # restore the environment to the state it was in before creating the tree
         return best_move.action
 
     def minimax(self, state_node: Option, depth, a, b, current_player, is_max=True):
+        other_player = self.get_other_player(current_player)
         self.nodes.append(state_node)
         state_node.is_max = is_max
         state = state_node.state
-        other_player = self.get_other_player(current_player)
+
         if depth == 0 or state.is_goal():
-            final_state = self.get_final_state(state_node)
-            utility = self.heuristic(final_state, is_max)
-            state_node.state = final_state
+            terminal_state = self.get_terminal_state(state_node)
+            utility = self.heuristic(terminal_state, is_max)
+            state_node.state = terminal_state
             state_node.value = utility
             return state_node, utility
 
@@ -147,11 +147,10 @@ class MiniMaxTree:
 
     def heuristic(self, state: State, is_max, alternative_mode=None):
         mode = alternative_mode or self.mode
-        sign = is_max and 1 or -1
-        if mode is 'semi-cooperative':
-            agent = is_max and self.max_player or self.min_player
-            return sign * self.heuristic_helper(agent, state)
         h1 = self.heuristic_helper(self.max_player, state)
+        if mode is 'semi-cooperative':
+            return h1
+
         h2 = self.heuristic_helper(self.min_player, state)
         if mode is 'adversarial':
             return h1 - h2
@@ -165,9 +164,8 @@ class MiniMaxTree:
             return agent.n_saved
 
         def num_rescuable_carrying():
-            if any([self.env.can_reach_before_deadline(v) for v in self.env.get_shelters()]):
-                return agent.n_carrying
-            return 0
+            can_reach_a_shelter = any([self.env.can_reach_before_deadline(v) for v in self.env.get_shelters()])
+            return agent.n_carrying if can_reach_a_shelter else 0
 
         def get_evac_candidates():
             """find nodes that can be reached before hurricane hits them.
@@ -208,7 +206,7 @@ class MiniMaxTree:
     def expand_node(self, state: State, agent):
         """returns Options (action, state) for all possible moves."""
         self.env.apply_state(state)
-        neighbours = agent.get_possible_steps(self.env, verbose=False) # options to proceed
+        neighbours = agent.get_possible_steps(self.env, verbose=False)  # options to proceed
         options = []
         for dest in neighbours + [ActionType.TERMINATE]:
             new_option = self.successor(state, agent, dest)
@@ -224,7 +222,7 @@ class MiniMaxTree:
         """
         self.env.apply_state(state)
 
-        if dest == ActionType.TERMINATE: #or (not agent.is_reachable(self.env, dest)):
+        if dest == ActionType.TERMINATE:
             def terminate_agent():
                 agent.terminate(self.env)
             action = Action(
