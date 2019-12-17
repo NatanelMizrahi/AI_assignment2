@@ -11,5 +11,5 @@ class GameAgent(Agent):
         """find the best action and execute it"""
         if not self.is_available(env):
             return
-        best_move = MiniMaxTree(env, self, env.get_other_agent(self), mode=env.mode).get_best_move()
+        best_move = MiniMaxTree(env, self, env.get_other_agent(self), mode=env.mode).get_best_move().action
         best_move.execute()

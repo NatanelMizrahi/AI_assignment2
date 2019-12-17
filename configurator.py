@@ -9,13 +9,16 @@ class Configurator:
     """static configurator class"""
     @staticmethod
     def get_user_config():
-        parser = argparse.ArgumentParser(description='''
+        parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
+                                         description='''
         Environment simulator for the Hurricane Evacuation Problem
-        example: python3 test.py -K 5 -g tests/test0.config''')
+        examples: 
+        python test.py -g tests/all.config -L V2 V1 --mode cooperative -K 4
+        python test.py -g random --max_neighbors 4 --mode adversarial''')
+
         parser.add_argument('-g', '--graph_path',
-                            default='random',
-                            # default='tests/coop.config',
-                            # default='tests/test7.config',
+                            # default='random',
+                            default='tests/all.config',
                             help='path to graph initial configuration file')
 
         parser.add_argument('-nn', '--max_neighbors',
@@ -28,22 +31,27 @@ class Configurator:
 
         parser.add_argument('-m', '--mode',
                             # default='adversarial',
-                            default='cooperative',
-                            choices=['adversarial', 'cooperative', 'semi-cooperative'],
+                            # default='cooperative',
+                            default='semi_cooperative',
+                            choices=['adversarial', 'cooperative', 'semi_cooperative'],
                             help='game mode')
 
         parser.add_argument('-t', '--tie_breaker',
-                            default='goal',  choices=['goal', 'shelter', 'coop'],
+                            default='goal',  choices=['goal', 'shelter'],
                             help='tie breaker for same value nodes in the minimax tree')
 
-        # debug command line arguments
-        parser.add_argument('-d', '--debug',
-                            default=True,  action='store_true',
-                            help='run in debug mode')
+        parser.add_argument('-L', '--agent_locs',
+                            default=None, nargs=2,
+                            help='agent locations by order. E.g "--agent_locs V1 V3" => initially A1 in V1, A2 in V3')
 
-        parser.add_argument('-s', '--view_strategy',
-                            default=True,  action='store_true',
-                            help='plot search agents strategy trees')
+        # debug command line arguments
+        parser.add_argument('-q', '--quiet',
+                            default=False,  action='store_true',
+                            help='disable debug prints (enabled by default)')
+
+        parser.add_argument('-s', '--skip_strategy',
+                            default=False, action='store_true',
+                            help='disable plotting search agents strategy trees (enabled by default)')
 
         args = vars(parser.parse_args())
         for k, v in args.items():
@@ -142,6 +150,6 @@ class Configurator:
 
 
 def debug(s):
-    if Configurator.debug:
+    if not Configurator.quiet:
         print(s)
 

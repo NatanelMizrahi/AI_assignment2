@@ -4,6 +4,8 @@ from environment import Environment, State, EvacuateNode
 from configurator import Configurator, debug
 from action import Action, ActionType
 
+inf = float('inf')
+
 
 class Option:
     """Represents an (action, result-state) node in a Minimax tree"""
@@ -70,33 +72,33 @@ class MiniMaxTree:
     def get_other_player(self, player):
         return player is self.min_player and self.max_player or self.min_player
 
-    #TODO: review this tie-breaker
-    def tie_breaker(self, agent, option, current_best_option):
+    @staticmethod
+    def tie_breaker(agent, option, current_best_option):
         debug('Tie: %s VS. %s' % (current_best_option.state.ID, option.state.ID))
-        # TODO: fix semi-coop logic
-        if self.mode is 'semi-cooperative':
-
-            current_best_state = self.get_terminal_state(current_best_option)
-            other_option_state = self.get_terminal_state(option)
-            current_h = self.heuristic(self, current_best_state, True, 'cooperative')
-            other_h   = self.heuristic(self, other_option_state, True, 'cooperative')
-            return other_h > current_h
-
         agent_state = agent is option.state.agent and option.state.agent_state or option.state.agent2_state
         return (Configurator.tie_breaker is 'goal' and option.state.is_goal()) or \
                (Configurator.tie_breaker is 'shelter' and agent_state.loc.is_shelter())
 
+    def semi_coop_tie_breaker(self):
+        """In case a tie is detected in semi-coop mode rerun Minimax in cooperative mode and return the result"""
+        print("Semi-cooperative agent tie-breaker called: returning best cooperative move")
+        self.display()  # view the minimax decision tree before making a new cooperative mode
+        self.restore_env()
+        best_coop_move = MiniMaxTree(self.env, self.max_player, self.min_player, mode='cooperative').get_best_move()
+        return best_coop_move
+
     def get_best_move(self):
-        depth = 1 if self.mode is 'semi-cooperative' else self.env.depth
+        depth = 1 if self.mode == 'semi_cooperative' else self.env.depth
         best_move, _ = self.minimax(state_node=self.root,
                                     depth=depth,
                                     a=float('-inf'),
                                     b=float('inf'),
                                     current_player=self.max_player,
                                     is_max=True)
-        self.display()      # view the minimax decision tree
-        self.restore_env()  # restore the environment to the state it was in before creating the tree
-        return best_move.action
+
+        self.display()          # view the minimax decision tree
+        self.restore_env()      # restore the environment to the state it was in before creating the tree
+        return best_move
 
     def minimax(self, state_node: Option, depth, a, b, current_player, is_max=True):
         other_player = self.get_other_player(current_player)
@@ -106,29 +108,39 @@ class MiniMaxTree:
 
         if depth == 0 or state.is_goal():
             terminal_state = self.get_terminal_state(state_node)
-            utility = self.heuristic(terminal_state, is_max)
+            utility = self.heuristic(terminal_state)
             state_node.state = terminal_state
             state_node.value = utility
             return state_node, utility
 
         if is_max:  # MAX player
             value = float('-inf')
+            max_tie_value = float('-inf')  # keeps track of the maximum value in a tie for semi-coop
             options = self.expand_node(state, current_player)
             choice = None
             for opt in options:
                 opt.parent = state_node
-                is_coop = self.mode is 'cooperative'
+                is_coop = self.mode == 'cooperative'
+                print("!!!", is_coop)
                 min_option, min_option_value = self.minimax(opt, depth-1, a, b, other_player, is_max=is_coop)
                 temp = max(value, min_option_value)
-                if temp > value or (temp == opt.value and self.tie_breaker(current_player, opt, choice)):
+                tie = (value == opt.value) and (choice is not None)
+                if tie:
+                    max_tie_value = max(temp, max_tie_value)
+                if temp > value or (tie and self.tie_breaker(current_player, opt, choice)):
                     choice = opt
                     value = temp
                 a = max(a, value)
                 if a >= b:
                     print("PRUNED: " + state.ID)
                     break
+
+            # handle special case for semi_cooperative agents. See doc @semi_coop_tie_breaker()
+            if self.mode == 'semi_cooperative' and max_tie_value == value:
+                return self.semi_coop_tie_breaker(), None
+
         else:  # MIN player
-            value = float('inf')
+            value = inf
             options = self.expand_node(state, current_player)
             choice = None
             for opt in options:
@@ -145,16 +157,15 @@ class MiniMaxTree:
         state_node.value = value
         return choice, value
 
-    def heuristic(self, state: State, is_max, alternative_mode=None):
-        mode = alternative_mode or self.mode
+    def heuristic(self, state: State):
         h1 = self.heuristic_helper(self.max_player, state)
-        if mode is 'semi-cooperative':
+        if self.mode == 'semi_cooperative':
             return h1
 
         h2 = self.heuristic_helper(self.min_player, state)
-        if mode is 'adversarial':
+        if self.mode == 'adversarial':
             return h1 - h2
-        if mode is 'cooperative':
+        if self.mode == 'cooperative':
             return h1 + h2
 
     def heuristic_helper(self, agent, state: State):
@@ -228,7 +239,7 @@ class MiniMaxTree:
             action = Action(
                 agent=agent,
                 action_type=ActionType.TERMINATE,
-                description='*[T={:>3}] "TERMINATE" action for {}'.format(agent.time, agent.name),
+                description='*[T={:>3}] {}: TERMINATE'.format(agent.time, agent.name),
                 end_time=agent.time,
                 callback=terminate_agent)
             agent.local_terminate()
@@ -238,7 +249,7 @@ class MiniMaxTree:
             action = Action(
                 agent=agent,
                 action_type=ActionType.TRAVERSE,
-                description='*[T={:>3}] "TRAVERSE {}->{}" action for {}'.format(agent.time, agent.loc, dest, agent.name),
+                description='*[T={:>3}] {}: TRAVERSE {}->{}'.format(agent.time, agent.name, agent.loc, dest),
                 end_time=agent.time,
                 callback=move_agent)
             agent.goto(self.env, dest)
@@ -254,7 +265,7 @@ class MiniMaxTree:
 
     def display(self):
         """plots the search tree"""
-        if not Configurator.view_strategy:
+        if Configurator.skip_strategy:
             return
         nodes = {node: node.summary() for node in self.nodes}
         max_nodes = [nodes[v] for v in nodes.keys() if v.is_max]

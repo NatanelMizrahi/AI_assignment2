@@ -129,7 +129,7 @@ class Agent:
         self.actions_seq.append(action)
         self.time = max(self.time, action.end_time)
         if verbose:
-            print('\n[REGISTERED]' + action.description)
+            print('\n[STARTED]' + action.description)
 
     def summary(self):
         terminate_string = '[${}]'.format(self.get_score()) if self.terminated else ''

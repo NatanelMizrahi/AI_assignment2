@@ -1,11 +1,11 @@
-from utils.data_structures import Node, Edge, Graph, insert_sorted, encode
+from utils.data_structures import Node, Graph, insert_sorted, encode
 from typing import List, Set, TypeVar, Union, Dict
 from copy import copy as shallow_copy
 from action import Action
 from itertools import count
 
 AgentType = TypeVar('Agent')
-GameMode = Union['adversarial', 'cooperative', 'semi-cooperative']
+GameMode = Union['adversarial', 'cooperative', 'semi_cooperative']
 
 
 class EvacuateNode(Node):
@@ -176,7 +176,6 @@ class Environment:
     def print_queued_actions(self, prefix=''):
         if prefix:
             print(prefix)
-        print('ENV @T=%d' % self.time)
         for k, v in self.agent_actions.items():
             print('\n\t'.join([str(k)] + [a.description for a in v]))
 

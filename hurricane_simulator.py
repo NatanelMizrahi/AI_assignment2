@@ -1,6 +1,6 @@
 import re
 from configurator import Configurator
-from random import choice as rand_choice
+from random import sample, choice as rand_choice
 from utils.data_structures import Edge
 from environment import Environment, ShelterNode, EvacuateNode, Graph
 from agents.minimax_agent import GameAgent
@@ -66,10 +66,21 @@ class Simulator:
             raise Exception("Error: |V| != N")
         return Graph(V, E)
 
-    def init_agents(self):
+    def get_agents_initial_locs(self):
         shelters = [v for v in self.G.get_vertices() if v.is_shelter()]
+        if Configurator.agent_locs:
+            name_to_shelter_dict = {v.label: v for v in shelters}
+            try:
+                return [name_to_shelter_dict[node_name] for node_name in Configurator.agent_locs]
+            except KeyError as e:
+                raise KeyError("%s is not a valid shelter node" % e.args[0])
+        else:
+            return sample(shelters, 2)
+
+    def init_agents(self):
+        start_locs = self.get_agents_initial_locs()
         for i in range(0, 2):
-            start_vertex = rand_choice(shelters)
+            start_vertex = start_locs[i]
             new_agent = GameAgent('A' + str(i), start_vertex)
             self.env.agents.append(new_agent)
             start_vertex.agents.add(new_agent)

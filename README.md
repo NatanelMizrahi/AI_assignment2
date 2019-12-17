@@ -1,31 +1,38 @@
 # AI_assignment2
 This is the second assignment in "Intro to Aritificial Intelligence".
 It's a hurricane evacuation simulator with Minimax based AI agents.
-Allows adversarial and collaborative mode.
+Allows adversarial, collaborative and semi-cooperative mode.
 ## Instructions:
 ```
-usage: test.py [-h] [-g GRAPH_PATH] [-V V_NO_OPS] [-K BASE_PENALTY] [-L LIMIT]
-               [-T T] [-a AGENTS [AGENTS ...]] [-d] [-i] [-s]
+usage: test.py [-h] [-g GRAPH_PATH] [-nn MAX_NEIGHBORS] [-K BASE_PENALTY]
+               [-m {adversarial,cooperative,semi_cooperative}]
+               [-t {goal,shelter}] [-L AGENT_LOCS AGENT_LOCS] [-q] [-s]
 
-Environment simulator for the Hurricane Evacuation Problem 
+        Environment simulator for the Hurricane Evacuation Problem
 
 optional arguments:
   -h, --help            show this help message and exit
   -g GRAPH_PATH, --graph_path GRAPH_PATH
                         path to graph initial configuration file
-  -V V_NO_OPS, --v_no_ops V_NO_OPS
-                        number of vandal agent's no-ops before taking action
+  -nn MAX_NEIGHBORS, --max_neighbors MAX_NEIGHBORS
+                        for random configurations, limits the number of
+                        neighbors for each node
   -K BASE_PENALTY, --base_penalty BASE_PENALTY
                         base penalty for losing an evacuation vehicle
-  -L LIMIT, --limit LIMIT
-                        Real-time A* agent expansions limit
-  -T T                  search tree expansions time unit
-  -a AGENTS [AGENTS ...], --agents AGENTS [AGENTS ...]
-                        active agent types
-  -d, --debug           run in debug mode
-  -i, --interactive     run interactively (with graph displays)
-  -s, --view_strategy   plot search agents strategy trees
+  -m {adversarial,cooperative,semi_cooperative}, --mode {adversarial,cooperative,semi_cooperative}
+                        game mode
+  -t {goal,shelter}, --tie_breaker {goal,shelter}
+                        tie breaker for same value nodes in the minimax tree
+  -L AGENT_LOCS AGENT_LOCS, --agent_locs AGENT_LOCS AGENT_LOCS
+                        agent locations by order. E.g "--agent_locs V1 V3" =>
+                        initially A1 in V1, A2 in V3
+  -q, --quiet           disable debug prints (enabled by default)
+  -s, --skip_strategy   disable plotting search agents strategy trees (enabled
+                        by default)
 ```  
-### Example: 
-`python3 test.py -V 1 -K 5 -g tests/23-11__18-08-25.config -a RTAStar Vandal -T 0.01 -L 7`
+### Examples: 
+```
+python test.py -g tests/all.config -L V2 V1 --mode cooperative -K 4
+python test.py -g random --max_neighbors 4 --mode adversarial
+```
 
