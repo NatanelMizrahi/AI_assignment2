@@ -51,7 +51,7 @@ class Agent:
         return self.time + env.G.get_edge(self.loc, v).w
 
     def traverse(self, env: Environment, v: EvacuateNode):
-        """Move max_player, taking transit time into account"""
+        """Move agent, taking transit time into account"""
         self.register_goto_callback(env, v)
 
     def arrive(self, env: Environment, v: EvacuateNode):
