@@ -1,4 +1,3 @@
-# source: https://stackoverflow.com/questions/29586520/can-one-get-hierarchical-graphs-from-networkx-with-python-3/29597209
 import matplotlib.pyplot as plt
 import networkx as nx
 import random
@@ -20,8 +19,9 @@ def display_tree(root, min_nodes, max_nodes, E, edge_labels={}):
     plt.show()
 
 
+# source: https://stackoverflow.com/questions/29586520/can-one-get-hierarchical-graphs-from-networkx-with-python-3/29597209
 def tree_pos(G, root=None, width=1., vert_gap = 0.2, vert_loc = 0, xcenter = 0.5):
-    '''
+    """
     From Joel's answer at https://stackoverflow.com/a/29597209/2966723.
     Licensed under Creative Commons Attribution-Share Alike
 
@@ -45,7 +45,7 @@ def tree_pos(G, root=None, width=1., vert_gap = 0.2, vert_loc = 0, xcenter = 0.5
     vert_loc: vertical location of root
 
     xcenter: horizontal location of root
-    '''
+    """
     if not nx.is_tree(G):
         raise TypeError('cannot use tree_pos on a graph that is not a tree')
 
@@ -76,8 +76,9 @@ def tree_pos(G, root=None, width=1., vert_gap = 0.2, vert_loc = 0, xcenter = 0.5
             nextx = xcenter - width/2 - dx/2
             for child in children:
                 nextx += dx
-                pos = _tree_pos(G, child, width = dx, vert_gap = vert_gap,
-                                    vert_loc = vert_loc-vert_gap, xcenter=nextx,
-                                    pos=pos, parent = root)
+                pos = _tree_pos(G, child,
+                                width=dx, vert_gap=vert_gap,
+                                vert_loc=vert_loc-vert_gap, xcenter=nextx,
+                                pos=pos, parent=root)
         return pos
     return _tree_pos(G, root, width, vert_gap, vert_loc, xcenter)

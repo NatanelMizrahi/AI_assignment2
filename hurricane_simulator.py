@@ -75,11 +75,12 @@ class Simulator:
             start_vertex.agents.add(new_agent)
 
     def run_agents(self):
-        for agent in self.env.agents:
-            title = 'T=%d: %s ' % (self.env.time, agent.name)
-            self.env.G.display(title + 'PRE')
-            agent.act(self.env)
-            self.env.G.display(title+'POST')
+        if self.env.any_agent_available():
+            for agent in self.env.agents:
+                title = 'T=%d: %s ' % (self.env.time, agent.name)
+                self.env.G.display(title + 'PRE')
+                agent.act(self.env)
+                self.env.G.display(title+'POST')
 
     def run_simulation(self):
         self.init_agents()

@@ -1,8 +1,22 @@
 from typing import Union, List
 from utils.tree import display_tree
-from environment import Environment, State, EvacuateNode, Option
+from environment import Environment, State, EvacuateNode
 from configurator import Configurator, debug
 from action import Action, ActionType
+
+
+class Option:
+    def __init__(self,
+                 action: Action,
+                 state: State):
+        self.action = action
+        self.state = state
+        self.value = None
+        self.is_max = False
+        self.parent: Option = None
+
+    def summary(self):
+        return '{} v={}'.format(self.state.summary(), self.value)
 
 
 class MiniMaxTree:
@@ -11,26 +25,35 @@ class MiniMaxTree:
         self.min_player = min_player
         self.env = env
         self.mode = mode
-        self.root: Option = self.get_root_node()
         self.nodes: List[Option] = []  # for debug
-        self.sync_env() # start by
+        self.env_initial_state: State = self.get_initial_state()
+        self.root: Option = self.get_root_node() #TODO: was before sync env!!
 
     def sync_env(self):
         """ some of the actions in the environment may not have completed (e.g. agents in transit).
             This function brings the environment to the point that all the agents have finished their prior moves
             before creating the minimax tree. NOT TO BE CONFUSED WITH restore_env()"""
+        self.env.print_queued_actions("PRE:: T=%d" % self.env.time)
+        self.env.get_state(self.max_player).describe()
         self.env.execute_all_env_actions()
+        self.env.print_queued_actions("POST:: T=%d" % self.env.time)
+        self.env.get_state(self.max_player).describe()
 
     def get_initial_state(self):
         return self.env.get_state(self.max_player)
 
     def get_root_node(self):
-        """creates a root node for the search tree representing the initial state"""
-        return Option(Action(self.max_player, description='ROOT'), self.get_initial_state())
+        """Completes queued actions in env + creates a root node for the search tree representing the initial state"""
+        self.sync_env()
+        return Option(Action(self.max_player, description='Dummy action (Tree Root)'), self.get_initial_state())
+
+    def restore_root_state(self):
+        """restore environment to the state in the root node - right after completing the actions initially in queue"""
+        self.env.apply_state(self.root.state)
 
     def restore_env(self):
         """restore environment to actual state after finding a strategy"""
-        self.env.apply_state(self.root.state)
+        self.env.apply_state(self.env_initial_state)
 
     def get_final_state(self, terminal_node):
         """ calculates the terminal state by backtracking the terminal node to get all the actions leading to the
@@ -40,10 +63,9 @@ class MiniMaxTree:
         path_to_root = self.backtrack(terminal_node)
         all_agents_actions = [option.action for option in path_to_root]
 
-        self.restore_env()
+        self.restore_root_state()
         self.env.agent_actions = {}
         self.env.add_agent_actions(all_agents_actions)
-        self.env.print_queued_actions('PRE:')
         self.env.execute_all_env_actions()
         return self.env.get_state(self.max_player)
 
@@ -63,6 +85,19 @@ class MiniMaxTree:
         agent_state = agent is option.state.agent and option.state.agent_state or option.state.agent2_state
         return (Configurator.tie_breaker is 'goal' and option.state.is_goal()) or \
                (Configurator.tie_breaker is 'shelter' and agent_state.loc.is_shelter())
+
+    def get_best_move(self):
+        best_move, _ = self.minimax(state_node=self.root,
+                                    depth=self.env.depth,
+                                    a=float('-inf'),
+                                    b=float('inf'),
+                                    current_player=self.max_player,
+                                    is_max=True)
+        self.display()      # view the minimax decision tree
+        self.restore_env()  # restore the environment to the state it was in before this function was called
+        self.env.print_queued_actions("POST %s" % self.max_player.name)
+
+        return best_move.action
 
     def minimax(self, state_node: Option, depth, a, b, current_player, is_max=True):
         self.nodes.append(state_node)
@@ -130,7 +165,6 @@ class MiniMaxTree:
             return agent.n_saved
 
         def num_rescuable_carrying():
-            print([(v, self.env.time, v.d, v.deadline, self.env.can_reach_before_deadline(v)) for v in self.env.get_shelters()])
             if any([self.env.can_reach_before_deadline(v) for v in self.env.get_shelters()]):
                 return agent.n_carrying
             return 0
@@ -189,7 +223,8 @@ class MiniMaxTree:
         :return: Option (action,state) action resulting in the successor state
         """
         self.env.apply_state(state)
-        if dest == ActionType.TERMINATE:
+
+        if dest == ActionType.TERMINATE: #or (not agent.is_reachable(self.env, dest)):
             def terminate_agent():
                 agent.terminate(self.env)
             action = Action(
@@ -202,7 +237,6 @@ class MiniMaxTree:
         else:
             def move_agent():
                 agent.traverse(self.env, dest)
-                print('TRV', agent.loc, dest, agent.loc.agents, dest.agents)
             action = Action(
                 agent=agent,
                 action_type=ActionType.TRAVERSE,

@@ -11,21 +11,29 @@ class Configurator:
     def get_user_config():
         parser = argparse.ArgumentParser(description='''
         Environment simulator for the Hurricane Evacuation Problem
-        example: python3 test.py -V 1 -K 5 -g tests/23-11__18-08-25.config -a AStar Vandal''')
+        example: python3 test.py -K 5 -g tests/test0.config''')
         parser.add_argument('-g', '--graph_path',
+                            # default='random',
                             default='tests/coop.config',
+                            # default='tests/test7.config',
                             help='path to graph initial configuration file')
+
+        parser.add_argument('-nn', '--max_neighbors',
+                            default=3, type=int,
+                            help='for random configurations, limits the number of neighbors for each node')
 
         parser.add_argument('-K', '--base_penalty',
                             default='2',   type=int,
                             help='base penalty for losing an evacuation vehicle')
 
         parser.add_argument('-m', '--mode',
-                            default='cooperative',  choices=['adversarial', 'cooperative', 'semi-cooperative'],
+                            # default='adversarial',
+                            default='cooperative',
+                            choices=['adversarial', 'cooperative', 'semi-cooperative'],
                             help='game mode')
 
         parser.add_argument('-t', '--tie_breaker',
-                            default=None,  choices=['goal', 'shelter', 'coop'],
+                            default='goal',  choices=['goal', 'shelter', 'coop'],
                             help='tie breaker for same value nodes in the minimax tree')
 
         # debug command line arguments
@@ -51,6 +59,11 @@ class Configurator:
             shelters = [v for v in G.get_vertices() if v.is_shelter()]
             has_shelter = len(shelters) > 0
             if not has_shelter:
+                return False
+
+            # number of neighbours for each vertex must be no more than limit
+            num_neighbors = [len(G.neighbours(v)) for v in V]
+            if any([n > Configurator.max_neighbors for n in num_neighbors]):
                 return False
 
             # All nodes must be connected
@@ -89,7 +102,7 @@ class Configurator:
         while not legal_config(G):
             V = []
             E = []
-            N = sample(range(4, 8), 1)[0]
+            N = sample(range(3, 8), 1)[0]
             L = ['V{}'.format(i) for i in range(N)]
             D = sample(range(1, 2 * N), N)
             P = sample(range(0, 20), N)

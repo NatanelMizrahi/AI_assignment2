@@ -94,7 +94,7 @@ class Edge:
     def __init__(self, v1: Node, v2: Node, w=0, name=''):
         """edge created lexicographically by its vertices names"""
         if v2 < v1:
-            v1, v2 = v2, v1  #
+            v1, v2 = v2, v1
         self.name = name
         self.v1 = v1
         self.v2 = v2

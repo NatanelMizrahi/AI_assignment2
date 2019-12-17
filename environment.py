@@ -1,5 +1,5 @@
 from utils.data_structures import Node, Edge, Graph, insert_sorted, encode
-from typing import List, Set, TypeVar, Union
+from typing import List, Set, TypeVar, Union, Dict
 from copy import copy as shallow_copy
 from action import Action
 from itertools import count
@@ -40,6 +40,7 @@ class ShelterNode(EvacuateNode):
     def describe(self):
         return 'Shelter\n' + super().describe()
 
+
 class State:
     ID = count(0)
 
@@ -49,21 +50,18 @@ class State:
                  agent2: AgentType,
                  agent2_state: AgentType,
                  require_evac_nodes: Set[EvacuateNode],
-                 agent_actions={}):
+                 agent_actions):
         """creates a new state. Inherits env and max_player data, unless overwritten"""
         self.agent = agent
         self.agent_state = agent_state
         self.agent2 = agent2
         self.agent2_state = agent2_state
         self.require_evac_nodes = require_evac_nodes
-        self.agent_actions = self.schedule_shallow_copy(agent_actions)
+        self.agent_actions: Dict[int, List[Action]] = agent_actions
         self.ID = encode(next(State.ID))
 
-    def schedule_shallow_copy(self, agent_actions):
-        return {time: shallow_copy(actions) for time, actions in agent_actions.items()}
-
     def is_goal(self):
-        return self.agent_state.terminated #or self.agent2_state.terminated
+        return self.agent_state.terminated
 
     def describe(self):
         print("State: [{:<20}{:<20}Evac:{}]"
@@ -81,12 +79,12 @@ class State:
 class Environment:
     def __init__(self, G, mode: GameMode='adversarial', depth=3):
         self.time = 0
-        self.G: SmartGraph = G
+        self.G: Graph = G
         self.mode = mode
         self.depth = depth
         self.agents: List[AgentType] = []
         self.require_evac_nodes: Set[EvacuateNode] = self.init_required_evac_nodes()
-        self.agent_actions = {}
+        self.agent_actions: Dict[int, List[Action]] = {}
 
     def tick(self):
         self.execute_agent_actions()
@@ -94,6 +92,9 @@ class Environment:
 
     def all_terminated(self):
         return all([agent.terminated for agent in self.agents])
+
+    def any_agent_available(self):
+        return any([agent.is_available(self) for agent in self.agents])
 
     def total_unsaved(self):
         return sum([v.n_people for v in self.require_evac_nodes])
@@ -109,6 +110,9 @@ class Environment:
 
     def get_shelters(self):
         return [v for v in self.G.get_vertices() if v.is_shelter()]
+
+    def schedule_shallow_copy(self):
+        return {time: shallow_copy(actions) for time, actions in self.agent_actions.items()}
 
     def add_agent_actions(self, agent_actions_to_add):
         for action in agent_actions_to_add:
@@ -130,13 +134,14 @@ class Environment:
             self.tick()
 
     def get_state(self, agent: AgentType):
+        other = self.get_other_agent(agent)
         return State(
             agent,
             agent.get_agent_state(),
-            self.get_other_agent(agent),
-            self.get_other_agent(agent).get_agent_state(),
+            other,
+            other.get_agent_state(),
             self.get_require_evac_nodes(),
-            self.agent_actions
+            self.schedule_shallow_copy()
         )
 
     def apply_state(self, state: State, active_agent=None):
@@ -145,7 +150,9 @@ class Environment:
         agent2, to_copy2 = state.agent2, state.agent2_state
         agent.update(to_copy)
         agent2.update(to_copy2)
-        self.time = (active_agent is agent) and agent.time or agent2.time
+        self.time = agent.time
+        if active_agent is not None:
+            self.time = (active_agent is agent) and agent.time or agent2.time
         self.require_evac_nodes = shallow_copy(state.require_evac_nodes)
         for v in self.G.get_vertices():
             v.agents = set([])
@@ -169,22 +176,9 @@ class Environment:
     def print_queued_actions(self, prefix=''):
         if prefix:
             print(prefix)
+        print('ENV @T=%d' % self.time)
         for k, v in self.agent_actions.items():
             print('\n\t'.join([str(k)] + [a.description for a in v]))
 
     def __repr__(self):
         return repr((self.mode, self.time))
-
-
-class Option:
-    def __init__(self,
-                 action: Action,
-                 state: State):
-        self.action = action
-        self.state = state
-        self.value = None
-        self.parent: Option = None
-        self.is_max = False
-
-    def summary(self):
-        return '{} v={}'.format(self.state.summary(), self.value)
