@@ -36,3 +36,9 @@ python test.py -g tests/all.config -L V2 V1 --mode cooperative -K 4
 python test.py -g random --max_neighbors 4 --mode adversarial
 ```
 
+### Graph visuals:
+#### Environment representation:
+![header image](https://github.com/NatanelMizrahi/AI_assignment2/demo/env_graph.png)
+#### Minimax decision tree representation:
+![header image](https://github.com/NatanelMizrahi/AI_assignment2/demo/minimax_tree.png)
+

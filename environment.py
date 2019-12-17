@@ -130,7 +130,6 @@ class Environment:
     def execute_all_env_actions(self):
         self.time = 0
         while any(self.agent_actions.values()):
-            print('T=%d' % self.time)
             self.tick()
 
     def get_state(self, agent: AgentType):

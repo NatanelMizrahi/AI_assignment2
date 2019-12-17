@@ -30,9 +30,7 @@ class Configurator:
                             help='base penalty for losing an evacuation vehicle')
 
         parser.add_argument('-m', '--mode',
-                            # default='adversarial',
-                            # default='cooperative',
-                            default='semi_cooperative',
+                            default='adversarial',
                             choices=['adversarial', 'cooperative', 'semi_cooperative'],
                             help='game mode')
 

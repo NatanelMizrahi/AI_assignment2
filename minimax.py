@@ -91,8 +91,7 @@ class MiniMaxTree:
         depth = 1 if self.mode == 'semi_cooperative' else self.env.depth
         best_move, _ = self.minimax(state_node=self.root,
                                     depth=depth,
-                                    a=float('-inf'),
-                                    b=float('inf'),
+                                    a=-inf, b=inf,
                                     current_player=self.max_player,
                                     is_max=True)
 
@@ -114,14 +113,13 @@ class MiniMaxTree:
             return state_node, utility
 
         if is_max:  # MAX player
-            value = float('-inf')
-            max_tie_value = float('-inf')  # keeps track of the maximum value in a tie for semi-coop
+            value = -inf
+            max_tie_value = -inf  # keeps track of the maximum value in a tie for semi-coop
             options = self.expand_node(state, current_player)
             choice = None
             for opt in options:
                 opt.parent = state_node
                 is_coop = self.mode == 'cooperative'
-                print("!!!", is_coop)
                 min_option, min_option_value = self.minimax(opt, depth-1, a, b, other_player, is_max=is_coop)
                 temp = max(value, min_option_value)
                 tie = (value == opt.value) and (choice is not None)
