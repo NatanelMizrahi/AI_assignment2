@@ -38,7 +38,7 @@ python test.py -g random --max_neighbors 4 --mode adversarial
 
 ### Graph visuals:
 #### Environment representation:
-![header image](https://github.com/NatanelMizrahi/AI_assignment2/demo/env_graph.png)
-#### Minimax decision tree representation:
-![header image](https://github.com/NatanelMizrahi/AI_assignment2/demo/minimax_tree.png)
+<img alt='env_graph' src="./demo/env_graph.png" width="600"/>
 
+#### Minimax decision tree representation:
+<img alt='minimax_tree' src="./demo/minimax_tree.png" width="600"/>
