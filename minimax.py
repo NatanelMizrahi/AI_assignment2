@@ -162,6 +162,7 @@ class MiniMaxTree:
 
         h2 = self.heuristic_helper(self.min_player, state)
         if self.mode == 'adversarial':
+
             return h1 - h2
         if self.mode == 'cooperative':
             return h1 + h2
@@ -205,6 +206,7 @@ class MiniMaxTree:
         evac_candidates = get_evac_candidates()
         can_save_nodes = can_reach_shelter(evac_candidates)
         n_already_saved = agent.n_saved
+        self.env.G.dijkstra(agent.loc)  # TODO: remove if all goes to shit
         n_can_save_carrying = num_rescuable_carrying()
         n_can_save_new = sum([v.n_people for v in can_save_nodes])
         total_can_save = n_can_save_carrying + n_can_save_new + n_already_saved

@@ -19,6 +19,7 @@ class Configurator:
         parser.add_argument('-g', '--graph_path',
                             # default='random',
                             default='tests/all.config',
+                            # default='tests/test8.config',
                             help='path to graph initial configuration file')
 
         parser.add_argument('-nn', '--max_neighbors',
@@ -31,6 +32,8 @@ class Configurator:
 
         parser.add_argument('-m', '--mode',
                             default='adversarial',
+                            # default='semi_cooperative',
+                            # default='cooperative',
                             choices=['adversarial', 'cooperative', 'semi_cooperative'],
                             help='game mode')
 
